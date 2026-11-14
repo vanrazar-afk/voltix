@@ -93,7 +93,8 @@
         "authDomain": "voltix-69621.firebaseapp.com",
         "projectId": "voltix-69621",
         "appId": "1:402697233802:web:54b2f9c4ea08bfb11c5473"
-      }
+      },
+      "googleWebClientId": "402697233802-dqe09io6hdea74ufide2e6jvftsq7667.apps.googleusercontent.com"
     }
   }
 }

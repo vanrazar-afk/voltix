@@ -8,6 +8,7 @@ import Feather from '@expo/vector-icons/Feather';
 import { useApp } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
 import { leaveAllRooms } from '@/lib/chat';
+import { GoogleButton } from '@/components/GoogleButton';
 import { colors, space } from '@/lib/theme';
 import { useT } from '@/lib/i18n';
 import { T, Row, Card, Disclaimer, LangToggle } from '@/components/ui';
@@ -84,7 +85,12 @@ export default function Settings() {
             </>
           ) : (
             <>
-              {auth.available && <Item icon="log-in" label={t('st_sign_in')} onPress={() => auth.signInWithGoogle()} />}
+              {auth.available && (
+                <View style={{ paddingVertical: 8, gap: 8 }}>
+                  <GoogleButton />
+                  <Item icon="mail" label={t('login_email')} onPress={() => router.push('/auth-email')} />
+                </View>
+              )}
               <Item icon="trash-2" danger label={armedLabel('reset', t('st_reset'))} onPress={() => confirm('reset', t('st_reset'), t('st_reset_b'), resetAll)} />
             </>
           )}

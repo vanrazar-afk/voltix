@@ -9,6 +9,7 @@ import { ActivityIndicator } from 'react-native';
 import { Logo } from '@/components/Logo';
 import { colors, radius, space } from '@/lib/theme';
 import { useApp } from '@/lib/store';
+import { GoogleButton } from '@/components/GoogleButton';
 import { useT } from '@/lib/i18n';
 import { useAuth } from '@/lib/auth';
 import { LangToggle } from '@/components/ui';
@@ -93,18 +94,22 @@ export default function Onboarding() {
             <T w="bold" size={16}>
               {t('ob_choose')}
             </T>
-            <EntryOption
-              icon="log-in"
-              title={t('login_google')}
-              sub={auth.available ? t('login_google_sub') : t('login_unavailable')}
-              disabled={!auth.available || auth.busy}
-              busy={auth.busy}
-              onPress={async () => {
-                if (!checked) return setHint(true);
-                accept();
-                await auth.signInWithGoogle();
-              }}
-            />
+            {checked && auth.available ? (
+              <View style={{ gap: 6, paddingVertical: 4 }}>
+                <GoogleButton onBefore={accept} />
+                <T size={12} color={colors.textDim} style={{ textAlign: 'center' }}>
+                  {t('login_google_sub')}
+                </T>
+              </View>
+            ) : (
+              <EntryOption
+                icon="log-in"
+                title={t('login_google')}
+                sub={auth.available ? t('login_google_sub') : t('login_unavailable')}
+                disabled={!auth.available}
+                onPress={() => setHint(true)}
+              />
+            )}
             <EntryOption
               icon="mail"
               title={t('login_email')}

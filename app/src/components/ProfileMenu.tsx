@@ -7,6 +7,7 @@ import { useT } from '@/lib/i18n';
 import { useApp } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
 import { T, Row, LangToggle } from './ui';
+import { GoogleButton } from './GoogleButton';
 
 /** Round avatar: the Google profile photo when signed in with Google, otherwise a generic person icon. */
 export function Avatar({ size = 36 }: { size?: number }) {
@@ -89,14 +90,9 @@ export function ProfileButton() {
               />
             ) : auth.available ? (
               <>
-                <Item
-                  icon="log-in"
-                  label={t('login_google')}
-                  onPress={() => {
-                    setOpen(false);
-                    auth.signInWithGoogle();
-                  }}
-                />
+                <View style={{ paddingVertical: 6 }}>
+                  <GoogleButton width={260} onBefore={() => setOpen(false)} />
+                </View>
                 <Item
                   icon="mail"
                   label={t('login_email')}

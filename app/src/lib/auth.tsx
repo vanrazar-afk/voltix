@@ -17,6 +17,7 @@ import {
   sendEmailVerification,
   sendPasswordResetEmail,
   updateProfile,
+  signInWithCredential,
   reload,
   type Auth,
   type User,
@@ -72,6 +73,8 @@ interface AuthApi {
   busy: boolean;
   error: string | null;
   signInWithGoogle: () => Promise<boolean>;
+  /** Finish a Google sign-in from the Google Identity Services button (ID token → Firebase session). */
+  signInWithGoogleIdToken: (idToken: string) => Promise<void>;
   /** Email account: create (sends a confirmation email), sign in, reset password, confirm verification. */
   signUpEmail: (name: string, email: string, password: string) => Promise<void>;
   signInEmail: (email: string, password: string) => Promise<void>;
@@ -171,6 +174,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const signInWithGoogleIdToken = useCallback(async (idToken: string) => {
+    if (!auth) throw new Error('auth/unavailable');
+    setBusy(true);
+    setError(null);
+    try {
+      const cred = await signInWithCredential(auth, GoogleAuthProvider.credential(idToken));
+      setFromUser(cred.user);
+    } catch (e) {
+      setError(String((e as { code?: string })?.code ?? e));
+      throw e;
+    } finally {
+      setBusy(false);
+    }
+  }, []);
+
   const signUpEmail = useCallback(async (name: string, email: string, password: string) => {
     if (!auth) throw new Error('auth/unavailable');
     const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
@@ -234,7 +252,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <Ctx.Provider
-      value={{ available: googleConfigured, busy, error, signInWithGoogle, signUpEmail, signInEmail, resetPassword, resendVerification, refreshVerification, continueAsGuest, signOutUser, deleteAccount }}
+      value={{ available: googleConfigured, busy, error, signInWithGoogle, signInWithGoogleIdToken, signUpEmail, signInEmail, resetPassword, resendVerification, refreshVerification, continueAsGuest, signOutUser, deleteAccount }}
     >
       {children}
     </Ctx.Provider>

@@ -6,6 +6,7 @@ import { useAuth } from '@/lib/auth';
 import { useApp } from '@/lib/store';
 import { T, Card, Button } from './ui';
 import { VerifyEmailCard } from './VerifyEmailCard';
+import { GoogleButton } from './GoogleButton';
 
 /** "Sign in to use this" — Google or email; for unconfirmed email accounts shows the confirmation step. */
 export function SignInPrompt({ text, returnTo }: { text: string; returnTo?: string }) {
@@ -19,17 +20,7 @@ export function SignInPrompt({ text, returnTo }: { text: string; returnTo?: stri
       <T color={colors.textDim} style={{ textAlign: 'center' }}>
         {text}
       </T>
-      {auth.available && (
-        <Button
-          label={t('login_google')}
-          icon="log-in"
-          onPress={() => {
-            if (returnTo) useApp.getState().setPendingPath(returnTo);
-            auth.signInWithGoogle();
-          }}
-          style={{ alignSelf: 'stretch' }}
-        />
-      )}
+      {auth.available && <GoogleButton onBefore={() => returnTo && useApp.getState().setPendingPath(returnTo)} />}
       {auth.available && (
         <Button
           label={t('login_email')}
