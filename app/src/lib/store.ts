@@ -14,13 +14,25 @@ export function legacyStorage(oldName: string) {
   };
 }
 
+/** An open position: one buy of a stock at the market price (no quantity — returns are tracked in %). */
 export interface Lot {
   id: string;
   symbol: string;
   name: string;
-  qty: number;
-  price: number; // cost per share
-  date: string; // YYYY-MM-DD
+  price: number; // buy price (market price at the moment of the trade)
+  date: string; // ISO time of the buy
+  qty?: number; // legacy (pre-trading-rules data) — ignored
+}
+
+/** A position that was sold at the market price. */
+export interface ClosedTrade {
+  id: string;
+  symbol: string;
+  name: string;
+  buyPrice: number;
+  buyDate: string;
+  sellPrice: number;
+  sellDate: string;
 }
 
 export interface Account {
@@ -35,8 +47,11 @@ interface AppState {
   disclaimerAcceptedAt: string | null;
   account: Account | null;
   setAccount: (a: Account | null) => void;
-  replaceData: (d: { lots: Lot[]; watchlist: string[] }) => void;
+  replaceData: (d: { lots: Lot[]; watchlist: string[]; history?: ClosedTrade[] }) => void;
   lots: Lot[];
+  history: ClosedTrade[];
+  /** Sell an open position at the given market price (moves it to history). */
+  sellLot: (id: string, price: number) => void;
   watchlist: string[];
   acceptDisclaimer: () => void;
   addLot: (lot: Omit<Lot, 'id'>) => void;
@@ -61,8 +76,16 @@ export const useApp = create<AppState>()(
       disclaimerAcceptedAt: null,
       account: null,
       setAccount: (account) => set({ account }),
-      replaceData: ({ lots, watchlist }) => set({ lots, watchlist }),
+      replaceData: ({ lots, watchlist, history }) => set((s) => ({ lots, watchlist, history: history ?? s.history })),
       lots: [],
+      history: [],
+      sellLot: (id, price) =>
+        set((s) => {
+          const l = s.lots.find((x) => x.id === id);
+          if (!l) return {};
+          const closed: ClosedTrade = { id: l.id, symbol: l.symbol, name: l.name, buyPrice: l.price, buyDate: l.date, sellPrice: price, sellDate: new Date().toISOString() };
+          return { lots: s.lots.filter((x) => x.id !== id), history: [closed, ...s.history] };
+        }),
       watchlist: [],
       acceptDisclaimer: () => set({ disclaimerAcceptedAt: new Date().toISOString() }),
       addLot: (lot) =>
@@ -72,12 +95,12 @@ export const useApp = create<AppState>()(
         set((s) => ({
           watchlist: s.watchlist.includes(symbol) ? s.watchlist.filter((x) => x !== symbol) : [...s.watchlist, symbol],
         })),
-      resetAll: () => set({ lots: [], watchlist: [], disclaimerAcceptedAt: null, account: null, blocked: [], pendingPath: null }),
+      resetAll: () => set({ lots: [], history: [], watchlist: [], disclaimerAcceptedAt: null, account: null, blocked: [], pendingPath: null }),
       pendingPath: null,
       setPendingPath: (pendingPath) => set({ pendingPath }),
       blocked: [],
       toggleBlock: (uid) => set((s) => ({ blocked: s.blocked.includes(uid) ? s.blocked.filter((x) => x !== uid) : [...s.blocked, uid] })),
     }),
-    { name: 'voltix-user', storage: createJSONStorage(() => legacyStorage('stoxx-user')), version: 3, migrate: (s: any) => ({ account: null, blocked: [], pendingPath: null, ...s }) },
+    { name: 'voltix-user', storage: createJSONStorage(() => legacyStorage('stoxx-user')), version: 4, migrate: (s: any) => ({ account: null, blocked: [], pendingPath: null, history: [], ...s }) },
   ),
 );

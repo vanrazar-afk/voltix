@@ -15,7 +15,7 @@ import {
   type Auth,
 } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc, deleteDoc, type Firestore } from 'firebase/firestore';
-import { useApp, type Lot } from './store';
+import { useApp, type ClosedTrade, type Lot } from './store';
 
 /**
  * Google sign-in (Firebase Auth) + syncing the portfolio & watchlist to Firestore (users/{uid}).
@@ -59,8 +59,8 @@ interface AuthApi {
 }
 const Ctx = createContext<AuthApi | null>(null);
 
-function mergeLots(a: Lot[], b: Lot[]) {
-  const m = new Map<string, Lot>();
+function mergeLots<X extends { id: string }>(a: X[], b: X[]) {
+  const m = new Map<string, X>();
   [...a, ...b].forEach((l) => m.set(l.id, l));
   return [...m.values()];
 }
@@ -86,12 +86,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       try {
         syncing.current = true;
         const snap = await getDoc(doc(db!, 'users', user.uid));
-        const cloud = (snap.exists() ? snap.data() : {}) as { lots?: Lot[]; watchlist?: string[] };
+        const cloud = (snap.exists() ? snap.data() : {}) as { lots?: Lot[]; watchlist?: string[]; history?: ClosedTrade[] };
         const local = useApp.getState();
-        const lots = mergeLots(cloud.lots ?? [], local.lots);
+        const history = mergeLots(cloud.history ?? [], local.history) as ClosedTrade[];
+        const sold = new Set(history.map((h) => h.id));
+        const lots = (mergeLots(cloud.lots ?? [], local.lots) as Lot[]).filter((l) => !sold.has(l.id));
         const watchlist = [...new Set([...(cloud.watchlist ?? []), ...local.watchlist])];
-        useApp.getState().replaceData({ lots, watchlist });
-        await setDoc(doc(db!, 'users', user.uid), { lots, watchlist, updatedAt: new Date().toISOString() });
+        useApp.getState().replaceData({ lots, watchlist, history });
+        await setDoc(doc(db!, 'users', user.uid), { lots, watchlist, history, updatedAt: new Date().toISOString() });
       } catch (e) {
         setError(String((e as { code?: string })?.code ?? e));
       } finally {
@@ -106,10 +108,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     let timer: ReturnType<typeof setTimeout> | undefined;
     const unsub = useApp.subscribe((s, prev) => {
       if (syncing.current || !uidRef.current || s.account?.mode !== 'google') return;
-      if (s.lots === prev.lots && s.watchlist === prev.watchlist) return;
+      if (s.lots === prev.lots && s.watchlist === prev.watchlist && s.history === prev.history) return;
       clearTimeout(timer);
       timer = setTimeout(() => {
-        setDoc(doc(db!, 'users', uidRef.current!), { lots: s.lots, watchlist: s.watchlist, updatedAt: new Date().toISOString() }).catch(() => {});
+        setDoc(doc(db!, 'users', uidRef.current!), { lots: s.lots, watchlist: s.watchlist, history: s.history, updatedAt: new Date().toISOString() }).catch(() => {});
       }, 1200);
     });
     return () => {
@@ -150,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (auth) await signOut(auth).catch(() => {});
     uidRef.current = null;
     // The data stays safe in the cloud; clear this device so the next person starts fresh
-    useApp.getState().replaceData({ lots: [], watchlist: [] });
+    useApp.getState().replaceData({ lots: [], watchlist: [], history: [] });
     useApp.getState().setAccount(null);
   }, []);
 
