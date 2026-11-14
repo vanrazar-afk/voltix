@@ -7,7 +7,8 @@ import { colors, radius, space } from '@/lib/theme';
 import { useT } from '@/lib/i18n';
 import { useData } from '@/lib/data';
 import { timeAgo } from '@/lib/format';
-import { newsTitle, NEWS_CATEGORIES } from '@/lib/news';
+import { newsTitle, newsWhy, NEWS_CATEGORIES } from '@/lib/news';
+import Feather from '@expo/vector-icons/Feather';
 import type { HotNews } from '@/lib/types';
 import { T, N, Row, Chip, Disclaimer } from '@/components/ui';
 import { TabHeader } from '@/components/ProfileMenu';
@@ -71,7 +72,7 @@ function NewsRow({ n, rank }: { n: HotNews; rank: number }) {
     <Pressable
       onPress={() => WebBrowser.openBrowserAsync(n.url)}
       accessibilityRole="link"
-      accessibilityLabel={`${rank}. ${title.text}. ${t('nw_impact')} ${impact}. ${n.source}`}
+      accessibilityLabel={`${rank}. ${title.text}. ${newsWhy(n, t.lang) ?? ''} ${t('nw_impact')} ${impact}. ${n.source}`}
       style={({ pressed }) => ({ backgroundColor: pressed ? colors.cardHi : colors.card, borderRadius: radius.lg, padding: space(4), borderWidth: 1, borderColor: colors.border, gap: 8 })}
     >
       <Row style={{ justifyContent: 'space-between', gap: 8 }}>
@@ -102,6 +103,19 @@ function NewsRow({ n, rank }: { n: HotNews; rank: number }) {
       <T w="bold" size={16} style={title.rtl ? { writingDirection: 'rtl', textAlign: 'right' } : { writingDirection: 'ltr', textAlign: 'left' }}>
         {title.text}
       </T>
+      {!!newsWhy(n, t.lang) && (
+        <Row style={{ gap: 8, alignItems: 'flex-start', backgroundColor: colors.bgElevated, borderRadius: radius.md, padding: 10 }}>
+          <Feather
+            name={n.dir === 'up' ? 'trending-up' : n.dir === 'down' ? 'trending-down' : 'info'}
+            size={16}
+            color={n.dir === 'up' ? colors.up : n.dir === 'down' ? colors.down : colors.textDim}
+            style={{ marginTop: 2 }}
+          />
+          <T size={13} color={colors.textDim} style={{ flex: 1 }}>
+            {newsWhy(n, t.lang)}
+          </T>
+        </Row>
+      )}
       <Row style={{ justifyContent: 'space-between', gap: 8 }}>
         <T size={12} color={colors.textDim} numberOfLines={1} style={{ flexShrink: 1 }}>
           {n.source} · {timeAgo(n.publishedAt, t.lang)}

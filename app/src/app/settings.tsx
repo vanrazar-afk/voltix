@@ -43,7 +43,7 @@ export default function Settings() {
     setTimeout(() => setArmed((a) => (a === key ? null : a)), 6000);
   };
 
-  const isGoogle = account?.mode === 'google';
+  const isGoogle = !!account && account.mode !== 'guest'; // signed in (Google or email)
   const armedLabel = (key: string, label: string) => (armed === key ? `${label} — ${t('delete')}?` : label);
 
   return (

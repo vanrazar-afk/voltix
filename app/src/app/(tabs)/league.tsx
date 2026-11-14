@@ -7,14 +7,15 @@ import { colors, fonts, radius, space } from '@/lib/theme';
 import { useT } from '@/lib/i18n';
 import { useData } from '@/lib/data';
 import { useAuth } from '@/lib/auth';
-import { useApp } from '@/lib/store';
+import { useApp, verifiedUid } from '@/lib/store';
 import { chatAvailable } from '@/lib/chat';
 import { fmtTime, pct, usd } from '@/lib/format';
 import { tradeBlock, useMarketStatus } from '@/lib/market';
-import { joinLeague, leaveLeague, NICK_RE, playerValue, START_CASH, trade, TRADES_PER_DAY, tradesLeft, useMyPlayer, usePlayers, type Player } from '@/lib/league';
+import { FEE, joinLeague, leaveLeague, NICK_RE, playerValue, START_CASH, trade, TRADES_PER_DAY, tradesLeft, useMyPlayer, usePlayers, type Player } from '@/lib/league';
 import { T, N, Row, Card, Button, Chip, Disclaimer } from '@/components/ui';
 import { TabHeader } from '@/components/ProfileMenu';
 import { MarketBadge } from '@/components/MarketBadge';
+import { SignInPrompt } from '@/components/SignInPrompt';
 
 const errText = (code: string, t: ReturnType<typeof useT>) => {
   const k = `lg_err_${code.replace(/^.*\//, '').replace(/-/g, '_')}`;
@@ -33,7 +34,7 @@ function leagueUrl() {
 export default function League() {
   const t = useT();
   const auth = useAuth();
-  const uid = useApp((s) => (s.account?.mode === 'google' ? s.account.uid : null));
+  const uid = useApp((s) => verifiedUid(s.account));
   const me = useMyPlayer();
   const players = usePlayers(!!uid);
   const { report } = useData();
@@ -91,12 +92,7 @@ export default function League() {
               <T color={colors.textDim}>{t('ch_unavailable')}</T>
             </Card>
           ) : !uid ? (
-            <Card style={{ gap: space(3), alignItems: 'center' }}>
-              <T color={colors.textDim} style={{ textAlign: 'center' }}>
-                {t('lg_need_google')}
-              </T>
-              <Button label={t('login_google')} icon="log-in" onPress={() => auth.signInWithGoogle()} />
-            </Card>
+            <SignInPrompt text={t('lg_need_google')} returnTo="/league" />
           ) : me === undefined ? (
             <T color={colors.textDim}>…</T>
           ) : (
@@ -142,6 +138,7 @@ export default function League() {
           <Row style={{ gap: space(3) }}>
             <Mini label={t('lg_cash')} value={usd(me.cash, 0)} />
             <Mini label={t('lg_trades_left')} value={`${left}/${TRADES_PER_DAY}`} color={left ? colors.text : colors.down} />
+            <Mini label={t('lg_fees_paid')} value={usd(me.fees, 0)} />
           </Row>
           <MarketBadge status={market} />
           <Row style={{ gap: space(3) }}>
@@ -325,6 +322,7 @@ function MyLeaguePortfolio({ me, onSell }: { me: Player; onSell: (s: string) => 
               </T>
               <N size={12} style={{ flex: 1 }}>
                 {l.qty} × {l.symbol} @ {usd(l.price)}
+                {l.fee ? ` (−${usd(l.fee, 0)})` : ''}
               </N>
               <T size={11} color={colors.textMute}>
                 {new Date(l.at).toLocaleDateString(t.lang === 'he' ? 'he-IL' : 'en-US', { day: 'numeric', month: 'short' })} {fmtTime(new Date(l.at).toISOString(), t.lang)}
@@ -349,7 +347,7 @@ function TradeTicket({ me, initial, onClose }: { me: Player; initial: { side: 'b
   const q = report.quotes[symbol];
   const held = me.holdings[symbol]?.qty ?? 0;
   const qty = Math.floor(Number(qtyText) || 0);
-  const maxBuy = q ? Math.floor(me.cash / q.price) : 0;
+  const maxBuy = q ? Math.max(0, Math.floor((me.cash - FEE) / q.price)) : 0;
   const total = q ? qty * q.price : 0;
   const block = tradeBlock(market, report.generatedAt);
   const left = tradesLeft(me);
@@ -417,7 +415,7 @@ function TradeTicket({ me, initial, onClose }: { me: Player; initial: { side: 'b
           </Row>
           {q && qty > 0 && (
             <T size={13} color={colors.textDim}>
-              {t('lg_total', { v: usd(total) })} · {t('lg_cash_after', { v: usd(side === 'buy' ? me.cash - total : me.cash + total) })}
+              {t('lg_total', { v: usd(total) })} + {t('lg_fee', { v: usd(FEE) })} · {t('lg_cash_after', { v: usd(side === 'buy' ? me.cash - total - FEE : me.cash + total - FEE) })}
             </T>
           )}
           {(reason || err) && (

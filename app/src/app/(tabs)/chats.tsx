@@ -9,6 +9,7 @@ import { chatAvailable, useMyRooms, type Room } from '@/lib/chat';
 import { timeAgo } from '@/lib/format';
 import { T, N, Row, Card, Button } from '@/components/ui';
 import { TabHeader } from '@/components/ProfileMenu';
+import { SignInPrompt } from '@/components/SignInPrompt';
 
 export default function Chats() {
   const t = useT();
@@ -60,15 +61,7 @@ export default function Chats() {
       </Card>
     );
   } else if (!uid) {
-    body = (
-      <Card style={{ gap: space(4), alignItems: 'center', paddingVertical: space(8) }}>
-        <Feather name="users" size={32} color={colors.brand2} />
-        <T color={colors.textDim} style={{ textAlign: 'center' }}>
-          {t('ch_need_google')}
-        </T>
-        <Button label={t('login_google')} onPress={() => auth.signInWithGoogle()} />
-      </Card>
-    );
+    body = <SignInPrompt text={t('ch_need_google')} returnTo="/chats" />;
   }
 
   return (

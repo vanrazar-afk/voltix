@@ -26,7 +26,7 @@ export function ProfileButton() {
   const [open, setOpen] = useState(false);
   const account = useApp((s) => s.account);
   const auth = useAuth();
-  const isGoogle = account?.mode === 'google';
+  const signedIn = !!account && account.mode !== 'guest';
 
   const go = (path: '/guide' | '/settings' | '/accessibility') => {
     setOpen(false);
@@ -60,10 +60,10 @@ export function ProfileButton() {
               <Avatar size={48} />
               <View style={{ flex: 1 }}>
                 <T w="bold" size={16} numberOfLines={1}>
-                  {isGoogle ? account?.name || account?.email : t('menu_guest')}
+                  {signedIn ? account?.name || account?.email : t('menu_guest')}
                 </T>
                 <T size={12} color={colors.textDim} numberOfLines={1}>
-                  {isGoogle ? account?.email : t('menu_guest_sub')}
+                  {signedIn ? account?.email : t('menu_guest_sub')}
                 </T>
               </View>
             </Row>
@@ -78,7 +78,7 @@ export function ProfileButton() {
               <LangToggle />
             </Row>
             <View style={{ height: 1, backgroundColor: colors.border, marginVertical: 4 }} />
-            {isGoogle ? (
+            {signedIn ? (
               <Item
                 icon="log-out"
                 label={t('st_sign_out')}
@@ -88,14 +88,24 @@ export function ProfileButton() {
                 }}
               />
             ) : auth.available ? (
-              <Item
-                icon="log-in"
-                label={t('login_google')}
-                onPress={() => {
-                  setOpen(false);
-                  auth.signInWithGoogle();
-                }}
-              />
+              <>
+                <Item
+                  icon="log-in"
+                  label={t('login_google')}
+                  onPress={() => {
+                    setOpen(false);
+                    auth.signInWithGoogle();
+                  }}
+                />
+                <Item
+                  icon="mail"
+                  label={t('login_email')}
+                  onPress={() => {
+                    setOpen(false);
+                    router.push('/auth-email');
+                  }}
+                />
+              </>
             ) : null}
           </Pressable>
         </Pressable>

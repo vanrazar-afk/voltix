@@ -3,14 +3,14 @@ name: Ranking + web app
 # Refreshes the ranking of ALL S&P 500 stocks with FREE data sources and republishes the web app (GitHub Pages):
 #  - every 5 minutes while Wall Street is open (9:30–16:00 New York time, Mon–Fri; checked in NY time,
 #    so summer/winter clock changes are handled), plus one run just after the close to lock closing prices
-#  - every hour when the market is closed (nights, weekends)
-#  News + fundamentals are re-fetched in a "full" run at most once an hour; the 5-minute runs refresh
-#  prices and technicals only (keeps Yahoo/Google request volume reasonable).
+#  - every 20 minutes when the market is closed (nights, weekends)
+#  The news sweep (hundreds of outlets) runs every ~20 minutes; fundamentals + per-stock news are re-fetched
+#  in a "full" run at most once an hour; the 5-minute runs refresh prices and technicals only.
 #  GitHub may start scheduled runs a few minutes late when its servers are busy.
 on:
   schedule:
     - cron: '*/5 13-21 * * 1-5'   # candidate 5-minute slots (gate below keeps only market hours)
-    - cron: '11 * * * *'          # hourly (gate below keeps only closed-market hours)
+    - cron: '11,31,51 * * * *'    # every 20 min (gate below keeps only closed-market hours) — news sweep + data
   workflow_dispatch: {}           # "Run workflow" button for manual runs
   push:
     branches: [main]
@@ -42,7 +42,7 @@ jobs:
           if [ "$DOW" -le 5 ] && [ "$HM" -ge 930 ] && [ "$HM" -lt 1610 ]; then OPEN=true; fi
           RUN=true
           if [ "$SCHED" = '*/5 13-21 * * 1-5' ] && [ "$OPEN" != true ]; then RUN=false; fi
-          if [ "$SCHED" = '11 * * * *' ] && [ "$OPEN" = true ]; then RUN=false; fi
+          if [ "$SCHED" = '11,31,51 * * * *' ] && [ "$OPEN" = true ]; then RUN=false; fi
           echo "NY $DOW $HM open=$OPEN sched='$SCHED' → run=$RUN"
           echo "run=$RUN" >> "$GITHUB_OUTPUT"
 

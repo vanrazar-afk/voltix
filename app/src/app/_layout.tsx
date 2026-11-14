@@ -32,7 +32,7 @@ function EntryGate() {
   useEffect(() => useApp.persist?.onFinishHydration?.(() => setHydrated(true)), []);
   const segments = useSegments();
   useEffect(() => {
-    const free = segments[0] === 'onboarding' || segments[0] === 'accessibility';
+    const free = segments[0] === 'onboarding' || segments[0] === 'accessibility' || segments[0] === 'auth-email';
     if (hydrated && (!accepted || !account) && !free) {
       // Remember an invite link so we can open it right after the entry screen
       const seg = segments as string[];
@@ -81,6 +81,7 @@ export default function RootLayout() {
             <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
             <Stack.Screen name="accessibility" options={{ title: t('st_a11y') }} />
             <Stack.Screen name="guide" options={{ title: '' }} />
+            <Stack.Screen name="auth-email" options={{ title: t('login_email') }} />
             <Stack.Screen name="settings" options={{ title: '' }} />
             <Stack.Screen name="chat/[id]" options={{ title: '' }} />
             <Stack.Screen name="chat/new" options={{ presentation: 'modal', title: t('ch_new') }} />

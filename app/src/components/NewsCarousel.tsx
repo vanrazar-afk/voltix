@@ -9,7 +9,7 @@ import { useT } from '@/lib/i18n';
 import { timeAgo } from '@/lib/format';
 import type { HotNews } from '@/lib/types';
 import { T, N, Row } from './ui';
-import { newsTitle } from '@/lib/news';
+import { newsTitle, newsWhy } from '@/lib/news';
 
 export const NEWS_CARD_HEIGHT = 178;
 const AUTO_MS = 7000;
@@ -103,7 +103,7 @@ export function NewsCarousel({ items }: { items: HotNews[] }) {
                 colors={GRADS[i % GRADS.length]}
                 start={{ x: 1, y: 0 }}
                 end={{ x: 0, y: 1 }}
-                style={{ flex: 1, padding: space(5), paddingBottom: 30, gap: space(2), direction: t.lang === 'he' ? 'rtl' : 'ltr' } as object}
+                style={{ flex: 1, padding: space(4), paddingBottom: 30, gap: 6, direction: t.lang === 'he' ? 'rtl' : 'ltr' } as object}
               >
                 <Row style={{ justifyContent: 'space-between', gap: 8 }}>
                   <Row style={{ gap: 6 }}>
@@ -118,12 +118,17 @@ export function NewsCarousel({ items }: { items: HotNews[] }) {
                 </Row>
                 <T
                   w="bold"
-                  size={18}
-                  numberOfLines={3}
+                  size={17}
+                  numberOfLines={2}
                   style={newsTitle(n, t.lang).rtl ? { writingDirection: 'rtl', textAlign: 'right', lineHeight: 25 } : { writingDirection: 'ltr', textAlign: 'left', lineHeight: 25 }}
                 >
                   {newsTitle(n, t.lang).text}
                 </T>
+                {!!newsWhy(n, t.lang) && (
+                  <T size={12} color={colors.textDim} numberOfLines={2}>
+                    {newsWhy(n, t.lang)}
+                  </T>
+                )}
                 <View style={{ flex: 1 }} />
                 <Row style={{ justifyContent: 'space-between', gap: 8 }}>
                   <Row style={{ gap: 6, flexShrink: 1 }}>

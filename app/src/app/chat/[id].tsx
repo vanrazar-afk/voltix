@@ -6,7 +6,7 @@ import Feather from '@expo/vector-icons/Feather';
 import { colors, fonts, radius, space } from '@/lib/theme';
 import { useT } from '@/lib/i18n';
 import { useData } from '@/lib/data';
-import { useApp } from '@/lib/store';
+import { useApp, verifiedUid } from '@/lib/store';
 import { fmtTime } from '@/lib/format';
 import {
   createInvite,
@@ -31,7 +31,7 @@ export default function ChatRoom() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const room = useRoom(id);
   const messages = useMessages(id);
-  const uid = useApp((s) => (s.account?.mode === 'google' ? s.account.uid : null));
+  const uid = useApp((s) => verifiedUid(s.account));
   const blocked = useApp((s) => s.blocked);
   const toggleBlock = useApp((s) => s.toggleBlock);
   const { report } = useData();

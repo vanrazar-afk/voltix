@@ -136,6 +136,9 @@ export interface HotNews {
   impact?: number; // 0–100 (estimated market impact)
   category?: string; // macro | policy | indices | energy | geo | earnings | deals | tech | crypto | company | markets
   titleHe?: string; // Hebrew translation
+  whyHe?: string; // one simple sentence: how this may affect the market / the stock
+  whyEn?: string;
+  dir?: 'up' | 'down' | 'neutral'; // likely direction of the effect (from the headline wording)
   tickers: string[];
 }
 
@@ -161,6 +164,7 @@ export interface DailyReport {
   fullAt?: string; // when news & fundamentals were last fetched
   hotNews?: HotNews[]; // hottest market stories right now (refreshed every run)
   marketNews?: HotNews[]; // News page: stories ranked by market impact
+  newsAt?: string; // when the news sweep last ran (every ~20 minutes)
   quotes: Record<string, { price: number; changePct: number; name: string; sector?: string }>; // whole universe (S&P 500)
   sectorMedians: Record<string, { pe: number | null; netMargin: number | null; revenueGrowthYoY: number | null }>;
   disclaimer: string;

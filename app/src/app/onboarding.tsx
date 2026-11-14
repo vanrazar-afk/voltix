@@ -106,6 +106,17 @@ export default function Onboarding() {
               }}
             />
             <EntryOption
+              icon="mail"
+              title={t('login_email')}
+              sub={auth.available ? t('login_email_sub') : t('login_unavailable')}
+              disabled={!auth.available}
+              onPress={() => {
+                if (!checked) return setHint(true);
+                accept();
+                router.push('/auth-email');
+              }}
+            />
+            <EntryOption
               icon="user"
               title={t('login_guest')}
               sub={t('login_guest_sub')}

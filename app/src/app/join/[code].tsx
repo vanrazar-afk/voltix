@@ -4,16 +4,17 @@ import { router, useLocalSearchParams } from 'expo-router';
 import Feather from '@expo/vector-icons/Feather';
 import { colors, space } from '@/lib/theme';
 import { useT } from '@/lib/i18n';
-import { useApp } from '@/lib/store';
+import { useApp, verifiedUid } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
 import { chatAvailable, getInvite, joinWithInvite, type Invite } from '@/lib/chat';
 import { T, Card, Button } from '@/components/ui';
+import { SignInPrompt } from '@/components/SignInPrompt';
 
 /** Landing page of an invite link: VOLTIX-URL/join/<code> */
 export default function Join() {
   const t = useT();
   const { code } = useLocalSearchParams<{ code: string }>();
-  const uid = useApp((s) => (s.account?.mode === 'google' ? s.account.uid : null));
+  const uid = useApp((s) => verifiedUid(s.account));
   const auth = useAuth();
   const [inv, setInv] = useState<Invite | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
@@ -51,18 +52,7 @@ export default function Join() {
             {t('ch_unavailable')}
           </T>
         ) : !uid ? (
-          <>
-            <T color={colors.textDim} style={{ textAlign: 'center' }}>
-              {t('ch_need_google')}
-            </T>
-            <Button
-              label={t('login_google')}
-              onPress={() => {
-                useApp.getState().setPendingPath(`/join/${code}`);
-                auth.signInWithGoogle();
-              }}
-            />
-          </>
+          <SignInPrompt text={t('ch_need_google')} returnTo={`/join/${code}`} />
         ) : inv === undefined ? (
           <T color={colors.textDim}>…</T>
         ) : inv === null ? (

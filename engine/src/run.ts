@@ -89,7 +89,15 @@ async function main() {
   const { report, all } = await buildRanking(inputs, { asOf: args.has('--mock') ? new Date('2026-11-06T21:00:00Z') : asOf, previous, classify });
   report.mode = mode;
   // Hottest market stories (every run — a dozen RSS calls). Mock/offline runs keep the previous list.
-  if (!args.has('--mock') && !args.has('--inputs') && ![...args].some((a) => a.startsWith('--inputs='))) {
+  const newsAge = previous?.newsAt ? (Date.now() - new Date(previous.newsAt).getTime()) / 60000 : Infinity;
+  const newsDue = newsAge >= Number(process.env.NEWS_EVERY_MIN ?? 19) || process.env.FULL_RUN === '1';
+  if (!newsDue) {
+    // Between sweeps: keep the last news (the web is scanned every ~20 minutes)
+    report.hotNews = previous?.hotNews ?? [];
+    report.marketNews = previous?.marketNews ?? [];
+    report.newsAt = previous?.newsAt;
+    console.log(`news: reusing sweep from ${Math.round(newsAge)} min ago`);
+  } else if (!args.has('--mock') && !args.has('--inputs') && ![...args].some((a) => a.startsWith('--inputs='))) {
     // Reuse earlier Hebrew translations (by story id) so each headline is translated once
     const tr = new Map<string, string>();
     for (const n of [...(previous?.hotNews ?? []), ...(previous?.marketNews ?? [])]) if (n.titleHe) tr.set(n.id, n.titleHe);
@@ -98,6 +106,7 @@ async function main() {
     );
     report.hotNews = news.hot.length ? news.hot : previous?.hotNews ?? [];
     report.marketNews = news.impact.length ? news.impact : previous?.marketNews ?? [];
+    report.newsAt = news.impact.length ? new Date().toISOString() : previous?.newsAt;
   }
   if (cache) report.fullAt = cache.fetchedAt;
 

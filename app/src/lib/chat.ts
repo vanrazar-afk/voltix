@@ -28,7 +28,7 @@ import {
   where,
 } from 'firebase/firestore';
 import { firebaseHandles } from './auth';
-import { useApp } from './store';
+import { useApp, verifiedUid } from './store';
 
 export const MAX_MESSAGE = 1000;
 export const MAX_MEMBERS = 50;
@@ -77,7 +77,7 @@ export function chatAvailable() {
 
 /** Rooms I'm a member of, live, most recent activity first. */
 export function useMyRooms() {
-  const uid = useApp((s) => (s.account?.mode === 'google' ? s.account.uid : null));
+  const uid = useApp((s) => verifiedUid(s.account));
   const [rooms, setRooms] = useState<Room[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   useEffect(() => {

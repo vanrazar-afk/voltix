@@ -9,6 +9,7 @@
  */
 import { cleanCompanyName } from './googlenews.js';
 import type { HotNews } from '../types.js';
+import { explain } from './newsexplain.js';
 export type { HotNews };
 
 const UA = { 'User-Agent': 'Mozilla/5.0 (VOLTIX news engine)' };
@@ -204,7 +205,9 @@ export function buildStories(items: Raw[], now: number, companies: { symbol: str
   });
 }
 
-const toNews = (s: Story, heatMax: number, impactMax: number): HotNews => ({
+const toNews = (s: Story, heatMax: number, impactMax: number): HotNews => {
+  const why = explain(s.rep.title, s.category, s.tickers);
+  return {
   id: Buffer.from(s.rep.url).toString('base64url').slice(-16),
   title: s.rep.title,
   url: s.rep.url,
@@ -215,7 +218,11 @@ const toNews = (s: Story, heatMax: number, impactMax: number): HotNews => ({
   impact: Math.max(1, Math.round((s.impactRaw / impactMax) * 100)),
   category: s.category,
   tickers: s.tickers,
-});
+  whyHe: why.he,
+  whyEn: why.en,
+  dir: why.dir,
+  };
+};
 
 export function rankHotNews(items: Raw[], now: number, companies: { symbol: string; name: string }[], limit = 12): HotNews[] {
   return rankNews(items, now, companies, limit, 0).hot;

@@ -12,7 +12,14 @@ import {
   signOut,
   deleteUser,
   reauthenticateWithPopup,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  sendEmailVerification,
+  sendPasswordResetEmail,
+  updateProfile,
+  reload,
   type Auth,
+  type User,
 } from 'firebase/auth';
 import { getFirestore, doc, getDoc, setDoc, deleteDoc, type Firestore } from 'firebase/firestore';
 import { useApp, type ClosedTrade, type Lot } from './store';
@@ -40,6 +47,18 @@ export function firebaseHandles() {
   return { auth, db };
 }
 
+function setFromUser(user: User) {
+  const google = user.providerData.some((p) => p.providerId === 'google.com');
+  useApp.getState().setAccount({
+    mode: google ? 'google' : 'email',
+    uid: user.uid,
+    name: user.displayName || user.email?.split('@')[0] || null,
+    email: user.email,
+    photo: google ? user.photoURL : null,
+    verified: google || user.emailVerified,
+  });
+}
+
 const isStandalone = () => {
   try {
     return typeof window !== 'undefined' && (window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone === true);
@@ -53,6 +72,12 @@ interface AuthApi {
   busy: boolean;
   error: string | null;
   signInWithGoogle: () => Promise<boolean>;
+  /** Email account: create (sends a confirmation email), sign in, reset password, confirm verification. */
+  signUpEmail: (name: string, email: string, password: string) => Promise<void>;
+  signInEmail: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
+  resendVerification: () => Promise<void>;
+  refreshVerification: () => Promise<boolean>;
   continueAsGuest: () => void;
   signOutUser: () => Promise<void>;
   deleteAccount: () => Promise<void>;
@@ -81,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
       uidRef.current = user.uid;
-      useApp.getState().setAccount({ mode: 'google', uid: user.uid, name: user.displayName, email: user.email, photo: user.photoURL });
+      setFromUser(user);
       // Pull cloud data and merge with anything created on this device
       try {
         syncing.current = true;
@@ -107,7 +132,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!db) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const unsub = useApp.subscribe((s, prev) => {
-      if (syncing.current || !uidRef.current || s.account?.mode !== 'google') return;
+      if (syncing.current || !uidRef.current || !s.account || s.account.mode === 'guest') return;
       if (s.lots === prev.lots && s.watchlist === prev.watchlist && s.history === prev.history) return;
       clearTimeout(timer);
       timer = setTimeout(() => {
@@ -146,6 +171,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const signUpEmail = useCallback(async (name: string, email: string, password: string) => {
+    if (!auth) throw new Error('auth/unavailable');
+    const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+    if (name.trim()) await updateProfile(cred.user, { displayName: name.trim().slice(0, 40) });
+    await sendEmailVerification(cred.user).catch(() => {});
+    setFromUser(cred.user);
+  }, []);
+
+  const signInEmail = useCallback(async (email: string, password: string) => {
+    if (!auth) throw new Error('auth/unavailable');
+    const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
+    setFromUser(cred.user);
+  }, []);
+
+  const resetPassword = useCallback(async (email: string) => {
+    if (!auth) throw new Error('auth/unavailable');
+    await sendPasswordResetEmail(auth, email.trim());
+  }, []);
+
+  const resendVerification = useCallback(async () => {
+    if (auth?.currentUser) await sendEmailVerification(auth.currentUser);
+  }, []);
+
+  /** After the user clicks the link in the email: reload, refresh the token (so the server sees it) and update. */
+  const refreshVerification = useCallback(async () => {
+    const u = auth?.currentUser;
+    if (!u) return false;
+    await reload(u);
+    if (u.emailVerified) await u.getIdToken(true);
+    setFromUser(u);
+    return u.emailVerified;
+  }, []);
+
   const continueAsGuest = useCallback(() => useApp.getState().setAccount({ mode: 'guest' }), []);
 
   const signOutUser = useCallback(async () => {
@@ -164,6 +222,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         await deleteUser(user);
       } catch (e) {
         if ((e as { code?: string })?.code === 'auth/requires-recent-login') {
+          if (!user.providerData.some((p) => p.providerId === 'google.com')) throw e; // email users: sign in again, then delete
           await reauthenticateWithPopup(user, new GoogleAuthProvider());
           await deleteUser(user);
         } else throw e;
@@ -174,7 +233,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <Ctx.Provider value={{ available: googleConfigured, busy, error, signInWithGoogle, continueAsGuest, signOutUser, deleteAccount }}>
+    <Ctx.Provider
+      value={{ available: googleConfigured, busy, error, signInWithGoogle, signUpEmail, signInEmail, resetPassword, resendVerification, refreshVerification, continueAsGuest, signOutUser, deleteAccount }}
+    >
       {children}
     </Ctx.Provider>
   );

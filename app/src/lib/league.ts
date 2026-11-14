@@ -9,10 +9,12 @@
 import { useEffect, useState } from 'react';
 import { collection, doc, getDoc, limit, onSnapshot, query, runTransaction, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { firebaseHandles } from './auth';
-import { useApp } from './store';
+import { useApp, verifiedUid } from './store';
 
 export const START_CASH = 100_000;
 export const TRADES_PER_DAY = 4;
+/** Commission charged on every buy and every sell. */
+export const FEE = 5;
 
 export interface Holding {
   qty: number;
@@ -24,6 +26,7 @@ export interface TradeLog {
   symbol: string;
   qty: number;
   price: number;
+  fee?: number;
 }
 export interface Player {
   uid: string;
@@ -33,6 +36,7 @@ export interface Player {
   day: number;
   dayCount: number;
   log: TradeLog[];
+  fees: number; // total commissions paid
 }
 
 /** Trading-day number used by the server rules (UTC days since epoch; the US session never crosses UTC midnight). */
@@ -66,11 +70,12 @@ const toPlayer = (uid: string, x: Record<string, unknown>): Player => ({
   day: Number(x.day ?? 0),
   dayCount: Number(x.dayCount ?? 0),
   log: (x.log as TradeLog[]) ?? [],
+  fees: Number(x.fees ?? 0),
 });
 
 /** My league record (live). undefined = loading, null = not registered. */
 export function useMyPlayer() {
-  const uid = useApp((s) => (s.account?.mode === 'google' ? s.account.uid : null));
+  const uid = useApp((s) => verifiedUid(s.account));
   const [p, setP] = useState<Player | null | undefined>(undefined);
   useEffect(() => {
     const { db } = firebaseHandles();
@@ -115,6 +120,7 @@ export async function joinLeague(nickname: string) {
     day: 0,
     dayCount: 0,
     log: [],
+    fees: 0,
     joinedAt: serverTimestamp(),
   });
   await b.commit();
@@ -145,18 +151,19 @@ export async function trade(side: 'buy' | 'sell', symbol: string, qty: number, p
     let cash = p.cash;
     if (side === 'buy') {
       const total = qty * price;
-      if (total > cash + 1e-6) throw new Error('insufficient-cash');
-      cash -= total;
+      if (total + FEE > cash + 1e-6) throw new Error('insufficient-cash');
+      cash -= total + FEE;
       holdings[symbol] = { qty: h.qty + qty, cost: round2(h.cost + total) };
     } else {
       if (qty > h.qty) throw new Error('insufficient-shares');
-      cash += qty * price;
+      if (cash + qty * price < FEE) throw new Error('insufficient-cash');
+      cash += qty * price - FEE;
       const left = h.qty - qty;
       if (left === 0) delete holdings[symbol];
       else holdings[symbol] = { qty: left, cost: round2((h.cost * left) / h.qty) };
     }
-    const log = [{ at: Date.now(), side, symbol, qty, price }, ...p.log].slice(0, 40);
-    tx.update(ref, { cash: round2(cash), holdings, day: today, dayCount: count + 1, log });
+    const log = [{ at: Date.now(), side, symbol, qty, price, fee: FEE }, ...p.log].slice(0, 40);
+    tx.update(ref, { cash: round2(cash), holdings, day: today, dayCount: count + 1, log, fees: round2(p.fees + FEE) });
   });
 }
 

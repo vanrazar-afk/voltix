@@ -36,12 +36,18 @@ export interface ClosedTrade {
 }
 
 export interface Account {
-  mode: 'guest' | 'google';
+  mode: 'guest' | 'google' | 'email';
   uid?: string;
   name?: string | null;
   email?: string | null;
   photo?: string | null;
+  verified?: boolean; // email accounts: address confirmed (Google accounts are always verified)
 }
+
+/** uid of a signed-in (Google or email) user, or null for guests. */
+export const accountUid = (a: Account | null) => (a && a.mode !== 'guest' ? a.uid ?? null : null);
+/** Signed in AND verified — required for groups and the league. */
+export const verifiedUid = (a: Account | null) => (a && a.mode !== 'guest' && a.verified !== false ? a.uid ?? null : null);
 
 interface AppState {
   disclaimerAcceptedAt: string | null;

@@ -2,12 +2,13 @@ rules_version = '2';
 // VOLTIX — Firestore security rules (paste into Firebase console → Firestore → Rules, or `firebase deploy --only firestore:rules`)
 service cloud.firestore {
   match /databases/{database}/documents {
-    function signedIn() { return request.auth != null; }
+    // Groups and the league need a confirmed identity: Google, or an email account whose address was confirmed
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
     function uid() { return request.auth.uid; }
 
     // Private portfolio + watchlist sync: only the owner
     match /users/{userId} {
-      allow read, write: if signedIn() && uid() == userId;
+      allow read, write: if request.auth != null && uid() == userId;
     }
 
     // Group chats: invite-only rooms
@@ -75,7 +76,7 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.uid == uid();
     }
 
-    // One portfolio per player: $100,000 start, ≤4 actions per trading day, weekdays inside the US session window.
+    // One portfolio per player: $100,000 start, ≤4 actions per trading day, $5 fee per action, weekdays inside the US session window.
     // (13:30–21:00 UTC covers 9:30–16:00 New York in both summer and winter time; the app enforces the exact
     //  session, holidays and current market prices.)
     match /league/{userId} {
@@ -92,7 +93,8 @@ service cloud.firestore {
         && request.resource.data.nickname is string
         && getAfter(/databases/$(database)/documents/nicknames/$(request.resource.data.nickname.lower())).data.uid == uid();
       allow update: if signedIn() && uid() == userId
-        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cash', 'holdings', 'day', 'dayCount', 'log'])
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cash', 'holdings', 'day', 'dayCount', 'log', 'fees'])
+        && request.resource.data.fees == resource.data.get('fees', 0) + 5
         && request.resource.data.cash is number && request.resource.data.cash >= 0
         && sessionWindow()
         && request.resource.data.day == today()
