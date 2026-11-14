@@ -43,6 +43,8 @@ const decode = (s: string) =>
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;|&apos;|&#x27;/g, "'")
+    .replace(/&#x2019;/gi, '’')
+    .replace(/&#x201[cd];/gi, '"')
     .replace(/&#8217;/g, '’')
     .replace(/&#8216;/g, '‘')
     .replace(/&#821[12];/g, '–')
@@ -99,7 +101,7 @@ function similar(a: Set<string>, b: Set<string>) {
 
 /** Keep the carousel about money: markets, companies, economy. */
 const FINANCE =
-  /\b(stocks?|shares?|market|nasdaq|dow|s&p|index|futures|earnings|revenue|profit|sales|guidance|forecast|investors?|analysts?|ipo|merger|acquisition|acquire|deal|buyout|stake|valuation|fed|federal reserve|rates?|inflation|cpi|jobs report|payrolls|gdp|economy|economic|recession|tariffs?|trade|treasur(y|ies)|bonds?|yields?|dollar|currency|oil|crude|gold|bitcoin|crypto|bank|banks|lender|billion|million|fine[sd]?|antitrust|sec|ceo|layoffs?|dividend|buyback|rally|selloff|sell-off|slump|surge|plunge|soar)\b|\$\d|\d%/i;
+  /\b(stocks?|shares?|market|nasdaq|dow|s&p|index|futures|earnings|revenue|profit|sales|guidance|forecast|investors?|analysts?|ipo|merger|acquisition|acquire|deal|buyout|stake|valuation|fed|federal reserve|rates?|inflation|cpi|jobs report|payrolls|gdp|economy|economic|recession|tariffs?|trade|treasur(y|ies)|bonds?|yields?|dollar|currency|oil|crude|gold|bitcoin|crypto|bank|banks|lender|billion|million|fine[sd]?|antitrust|sec|ceo|layoffs?|dividend|buyback|rally|selloff|sell-off|slump|selloff)\b|\$\d|\d%/i;
 
 /** S&P 500 names that are also everyday words — matched only via an explicit ticker like (TGT). */
 const GENERIC_NAMES = /^(Target|Ball|Block|Progressive|Southern|Public Storage|General Mills|Match Group|Fox|News|Booking|Equity Residential|Realty Income|Gap)$/;
@@ -114,11 +116,12 @@ const ALIASES: Record<string, string> = {
   PYPL: 'PayPal', V: 'Visa', MA: 'Mastercard', T: 'AT&T', VZ: 'Verizon', CMCSA: 'Comcast', GE: 'GE Aerospace', F: 'Ford', GM: 'General Motors',
 };
 
-const JUNK = /^(live:|watch:|video:|podcast|newsletter|opinion:|quiz|crossword|horoscope)|sponsored|stock price|price target & analyst/i;
+const JUNK = /^(live:|watch:|video:|podcast|newsletter|opinion:|quiz|crossword|horoscope)|sponsored|stock price|price target & analyst|^(I|I['’]m|My|We|We['’]re)\b.*\?$|\bam I wrong\b|\bshould I\b|\bmy (husband|wife|father|mother|son|daughter|kids?)\b|\bI inherited\b/i;
 
 export function rankHotNews(items: Raw[], now: number, companies: { symbol: string; name: string }[], limit = 12): HotNews[] {
   const fresh = items.filter((r) => now - r.at < 36 * 3600e3 && r.at - now < 3600e3 && !JUNK.test(r.title));
-  const financial = (c: { raws: Raw[] }) => c.raws.some((r) => FINANCE.test(r.title));
+  // The headline we would show must itself be about money (not just one syndicated variant)
+  const financial = (c: { raws: Raw[] }) => c.raws.filter((r) => FINANCE.test(r.title)).length * 2 >= c.raws.length;
   const clusters: { raws: Raw[]; tok: Set<string> }[] = [];
   for (const r of fresh.sort((a, b) => b.at - a.at)) {
     const tok = tokens(r.title);

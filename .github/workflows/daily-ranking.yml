@@ -80,7 +80,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: app/dist
-          key: web-${{ hashFiles('app/src/**', 'app/public/**', 'app/assets/**', 'app/app.json', 'app/app.config.ts', 'app/package-lock.json') }}
+          key: web-${{ github.event.repository.name }}-${{ hashFiles('app/src/**', 'app/public/**', 'app/assets/**', 'app/app.json', 'app/app.config.ts', 'app/package-lock.json') }}
       - if: steps.webcache.outputs.cache-hit != 'true'
         run: npm install --no-audit --no-fund
         working-directory: app
