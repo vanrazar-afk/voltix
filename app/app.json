@@ -89,10 +89,10 @@
       "termsUrl": "",
       "supportEmail": "",
       "firebase": {
-        "apiKey": "",
-        "authDomain": "",
-        "projectId": "",
-        "appId": ""
+        "apiKey": "AIzaSyDDsWBxX6Od5WTaI8bjoFQgutGXkh7Rv90",
+        "authDomain": "voltix-69621.firebaseapp.com",
+        "projectId": "voltix-69621",
+        "appId": "1:402697233802:web:54b2f9c4ea08bfb11c5473"
       }
     }
   }
