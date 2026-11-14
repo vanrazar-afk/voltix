@@ -20,7 +20,7 @@ export const FEEDS: { url: string; source?: string; weight: number }[] = [
   { url: 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=20910258', source: 'CNBC', weight: 1 },
   { url: 'https://feeds.content.dowjones.io/public/rss/mw_topstories', source: 'MarketWatch', weight: 1 },
   { url: 'https://feeds.content.dowjones.io/public/rss/mw_marketpulse', source: 'MarketWatch', weight: 0.8 },
-  { url: 'https://finance.yahoo.com/news/rssindex', source: 'Yahoo Finance', weight: 0.9 },
+  { url: gn('site:finance.yahoo.com when:1d'), weight: 0.9 },
   { url: 'https://www.investing.com/rss/news_25.rss', source: 'Investing.com', weight: 0.7 },
   { url: 'https://seekingalpha.com/market_currents.xml', source: 'Seeking Alpha', weight: 0.7 },
   // Google News "Business" top stories (Reuters, Bloomberg, WSJ, FT, AP… ranked by Google's prominence)
@@ -77,7 +77,7 @@ export function parseRss(xml: string, fallbackSource: string | undefined, weight
 }
 
 const STOP = new Set(
-  'a an the of to in on for and or as at by with from is are be its it this that after amid over under into vs new says say said will may could stock stocks shares market markets wall street us u.s. report reports'.split(
+  'a an the of to in on for and or as at by with from is are be its it this that after amid over under into vs new says say said will may could stock stocks shares market markets wall street us u.s. report reports buy sell better best top which why what how here now today should can this week year 2025 2026 2027 just big more than you your'.split(
     ' ',
   ),
 );
@@ -90,16 +90,35 @@ const tokens = (t: string) =>
       .split(' ')
       .filter((w) => w.length > 2 && !STOP.has(w)),
   );
+/** Same story = at least 3 shared meaningful words AND they make up half of the shorter headline. */
 function similar(a: Set<string>, b: Set<string>) {
   let inter = 0;
   for (const w of a) if (b.has(w)) inter++;
-  return inter / Math.max(1, Math.min(a.size, b.size));
+  return inter >= 3 ? inter / Math.max(1, Math.min(a.size, b.size)) : 0;
 }
+
+/** Keep the carousel about money: markets, companies, economy. */
+const FINANCE =
+  /\b(stocks?|shares?|market|nasdaq|dow|s&p|index|futures|earnings|revenue|profit|sales|guidance|forecast|investors?|analysts?|ipo|merger|acquisition|acquire|deal|buyout|stake|valuation|fed|federal reserve|rates?|inflation|cpi|jobs report|payrolls|gdp|economy|economic|recession|tariffs?|trade|treasur(y|ies)|bonds?|yields?|dollar|currency|oil|crude|gold|bitcoin|crypto|bank|banks|lender|billion|million|fine[sd]?|antitrust|sec|ceo|layoffs?|dividend|buyback|rally|selloff|sell-off|slump|surge|plunge|soar)\b|\$\d|\d%/i;
+
+/** S&P 500 names that are also everyday words — matched only via an explicit ticker like (TGT). */
+const GENERIC_NAMES = /^(Target|Ball|Block|Progressive|Southern|Public Storage|General Mills|Match Group|Fox|News|Booking|Equity Residential|Realty Income|Gap)$/;
+
+/** How headlines usually name the biggest companies. */
+const ALIASES: Record<string, string> = {
+  META: 'Meta', GOOGL: 'Google|Alphabet', GOOG: 'Google|Alphabet', AMZN: 'Amazon', MSFT: 'Microsoft', AAPL: 'Apple', NVDA: 'Nvidia',
+  TSLA: 'Tesla', 'BRK.B': 'Berkshire', JPM: 'JPMorgan', GS: 'Goldman', MS: 'Morgan Stanley', BAC: 'Bank of America', WFC: 'Wells Fargo',
+  C: 'Citigroup|Citi', AVGO: 'Broadcom', AMD: 'AMD', INTC: 'Intel', NFLX: 'Netflix', DIS: 'Disney', WMT: 'Walmart', KO: 'Coca-Cola',
+  XOM: 'Exxon', CVX: 'Chevron', BA: 'Boeing', UNH: 'UnitedHealth', LLY: 'Eli Lilly|Lilly', PFE: 'Pfizer', MRK: 'Merck', ORCL: 'Oracle',
+  CRM: 'Salesforce', PLTR: 'Palantir', COST: 'Costco', HD: 'Home Depot', MCD: "McDonald's", NKE: 'Nike', SBUX: 'Starbucks', UBER: 'Uber',
+  PYPL: 'PayPal', V: 'Visa', MA: 'Mastercard', T: 'AT&T', VZ: 'Verizon', CMCSA: 'Comcast', GE: 'GE Aerospace', F: 'Ford', GM: 'General Motors',
+};
 
 const JUNK = /^(live:|watch:|video:|podcast|newsletter|opinion:|quiz|crossword|horoscope)|sponsored|stock price|price target & analyst/i;
 
 export function rankHotNews(items: Raw[], now: number, companies: { symbol: string; name: string }[], limit = 12): HotNews[] {
   const fresh = items.filter((r) => now - r.at < 36 * 3600e3 && r.at - now < 3600e3 && !JUNK.test(r.title));
+  const financial = (c: { raws: Raw[] }) => c.raws.some((r) => FINANCE.test(r.title));
   const clusters: { raws: Raw[]; tok: Set<string> }[] = [];
   for (const r of fresh.sort((a, b) => b.at - a.at)) {
     const tok = tokens(r.title);
@@ -110,10 +129,15 @@ export function rankHotNews(items: Raw[], now: number, companies: { symbol: stri
   }
 
   const names = companies
-    .map((c) => ({ symbol: c.symbol, re: new RegExp(`\\b${cleanCompanyName(c.name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i') }))
-    .filter((c) => c.re.source.length > 6);
+    .map((c) => {
+      const alias = ALIASES[c.symbol];
+      const name = cleanCompanyName(c.name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+      return { symbol: c.symbol, re: new RegExp(`(?<![\\w&])(?:${alias ? `${alias}|` : ''}${name})(?![\\w&])`) }; // case-sensitive: names are capitalised
+    })
+    .filter((c) => c.re.source.length > 6 && !GENERIC_NAMES.test(cleanCompanyName(companies.find((x) => x.symbol === c.symbol)!.name)));
+  const symbols = new Set(companies.map((c) => c.symbol));
 
-  const scored = clusters.map((c) => {
+  const scored = clusters.filter(financial).map((c) => {
     const outlets = [...new Set(c.raws.map((r) => r.source))];
     const coverage = outlets.reduce((a, o) => a + (TIER1.test(o) ? 1.5 : 1), 0);
     const prominence = Math.max(...c.raws.map((r) => r.weight * Math.max(0, 1 - r.pos / 25)));
@@ -124,8 +148,8 @@ export function rankHotNews(items: Raw[], now: number, companies: { symbol: stri
     const rep = [...c.raws].sort(
       (a, b) => Number(TIER1.test(b.source)) - Number(TIER1.test(a.source)) || a.pos - b.pos || b.at - a.at,
     )[0];
-    const text = c.raws.map((r) => r.title).join(' | ');
-    const tickers = names.filter((n) => n.re.test(text)).map((n) => n.symbol).slice(0, 4);
+    const explicit = [...rep.title.matchAll(/[($]([A-Z]{1,5}(?:\.[A-Z])?)\)?/g)].map((m) => m[1]).filter((x) => symbols.has(x));
+    const tickers = [...new Set([...explicit, ...names.filter((n) => n.re.test(rep.title)).map((n) => n.symbol)])].slice(0, 4);
     return { rep, outlets, raw, newest, tickers };
   });
 
