@@ -231,34 +231,69 @@ export function rankNews(items: Raw[], now: number, companies: { symbol: string;
   return { hot, impact };
 }
 
+/** Free translation endpoints, tried in order (each may rate-limit a shared CI address). */
+const TRANSLATORS: ((texts: string[]) => Promise<string[]>)[] = [
+  // Google web endpoint (batched with newlines)
+  async (texts) => {
+    const q = texts.join('\n');
+    const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=iw&dt=t&q=${encodeURIComponent(q)}`, { headers: UA, signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error(`gtx ${res.status}`);
+    const data = (await res.json()) as [[string, string][]];
+    return data[0].map((seg) => seg[0]).join('').split('\n');
+  },
+  // Google dictionary-extension endpoint (array in, array out)
+  async (texts) => {
+    const qs = texts.map((t) => `q=${encodeURIComponent(t)}`).join('&');
+    const res = await fetch(`https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=en&tl=iw&${qs}`, { headers: UA, signal: AbortSignal.timeout(15000) });
+    if (!res.ok) throw new Error(`dict ${res.status}`);
+    const data = (await res.json()) as (string | [string, string])[];
+    return data.map((x) => (Array.isArray(x) ? x[0] : x));
+  },
+  // MyMemory (one request per headline)
+  async (texts) => {
+    const out: string[] = [];
+    for (const t of texts) {
+      const res = await fetch(`https://api.mymemory.translated.net/get?langpair=en|he&q=${encodeURIComponent(t)}`, { headers: UA, signal: AbortSignal.timeout(15000) });
+      if (!res.ok) throw new Error(`mymemory ${res.status}`);
+      const j = (await res.json()) as { responseStatus: number; responseData?: { translatedText?: string } };
+      if (j.responseStatus !== 200) throw new Error(`mymemory ${j.responseStatus}`);
+      out.push(j.responseData?.translatedText ?? '');
+    }
+    return out;
+  },
+];
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 /**
- * Translate headlines to Hebrew (free Google Translate web endpoint, batched; cached by story id across runs).
- * Falls back to English silently if the service is unavailable.
+ * Translate headlines to Hebrew, cached by story id across runs (so each headline is translated once).
+ * Small batches, a pause between them, and fallback services when one is rate-limited; English stays if all fail.
  */
 export async function translateTitles(news: HotNews[], cache: Map<string, string>, log: (s: string) => void = () => {}) {
   for (const n of news) if (cache.has(n.id)) n.titleHe = cache.get(n.id);
-  const todo = news.filter((n) => !n.titleHe);
-  for (let i = 0; i < todo.length; i += 20) {
-    const batch = todo.slice(i, i + 20);
+  const todo = [...new Map(news.filter((n) => !n.titleHe).map((n) => [n.id, n])).values()];
+  let tr = 0;
+  let done = 0;
+  for (let i = 0; i < todo.length && tr < TRANSLATORS.length; ) {
+    const batch = todo.slice(i, i + 8);
     try {
-      const q = batch.map((n) => n.title.replace(/\n/g, ' ')).join('\n');
-      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=iw&dt=t&q=${encodeURIComponent(q)}`;
-      const res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(15000) });
-      if (!res.ok) throw new Error(String(res.status));
-      const data = (await res.json()) as [[string, string][]];
-      const out = data[0].map((seg) => seg[0]).join('').split('\n');
+      const out = await TRANSLATORS[tr](batch.map((n) => n.title.replace(/\n/g, ' ')));
       batch.forEach((n, j) => {
         const he = out[j]?.trim();
-        if (he) {
-          n.titleHe = he;
+        if (he && /[\u0590-\u05FF]/.test(he)) {
           cache.set(n.id, he);
+          done++;
         }
       });
+      i += batch.length;
+      await sleep(400);
     } catch (e) {
-      log(`translate failed: ${(e as Error).message}`);
-      return;
+      log(`translate: ${(e as Error).message} — trying next service`);
+      tr++;
     }
   }
+  for (const n of news) if (cache.has(n.id)) n.titleHe = cache.get(n.id);
+  log(`translated ${done} new headlines (${todo.length} needed)`);
 }
 
 export async function loadMarketNews(
