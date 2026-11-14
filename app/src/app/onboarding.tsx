@@ -28,7 +28,11 @@ export default function Onboarding() {
   const account = useApp((s) => s.account);
   const acceptedAt = useApp((s) => s.disclaimerAcceptedAt);
   useEffect(() => {
-    if (account && acceptedAt) router.replace('/');
+    if (account && acceptedAt) {
+      const next = useApp.getState().pendingPath;
+      useApp.getState().setPendingPath(null);
+      router.replace((next || '/') as never);
+    }
   }, [account, acceptedAt]);
 
   return (

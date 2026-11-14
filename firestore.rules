@@ -1,0 +1,71 @@
+rules_version = '2';
+// VOLTIX — Firestore security rules (paste into Firebase console → Firestore → Rules, or `firebase deploy --only firestore:rules`)
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function uid() { return request.auth.uid; }
+
+    // Private portfolio + watchlist sync: only the owner
+    match /users/{userId} {
+      allow read, write: if signedIn() && uid() == userId;
+    }
+
+    // Group chats: invite-only rooms
+    match /rooms/{roomId} {
+      function isMember() { return signedIn() && uid() in resource.data.members; }
+      function changed() { return request.resource.data.diff(resource.data).affectedKeys(); }
+      function validInvite() {
+        let code = request.resource.data.joinCode;
+        let inv = get(/databases/$(database)/documents/invites/$(code)).data;
+        return code is string && inv.roomId == roomId && inv.expiresAt > request.time;
+      }
+
+      allow read: if isMember();
+      allow create: if signedIn()
+        && request.resource.data.createdBy == uid()
+        && request.resource.data.members == [uid()]
+        && request.resource.data.name is string
+        && request.resource.data.name.size() > 0 && request.resource.data.name.size() <= 60;
+      // Members: post activity / profile updates, or leave (remove only themselves)
+      allow update: if isMember() && (
+        changed().hasOnly(['lastMessage', 'lastAt', 'memberInfo'])
+        || (changed().hasOnly(['members'])
+            && request.resource.data.members.toSet() == resource.data.members.toSet().difference([uid()].toSet()))
+      );
+      // Joining with a valid, unexpired invite code: may add only themselves
+      allow update: if signedIn() && !(uid() in resource.data.members)
+        && changed().hasOnly(['members', 'memberInfo', 'joinCode'])
+        && request.resource.data.members.toSet() == resource.data.members.toSet().union([uid()].toSet())
+        && request.resource.data.members.size() <= 50
+        && validInvite();
+      allow delete: if signedIn() && resource.data.createdBy == uid();
+
+      match /messages/{messageId} {
+        function roomMember() {
+          return signedIn() && uid() in get(/databases/$(database)/documents/rooms/$(roomId)).data.members;
+        }
+        allow read: if roomMember();
+        allow create: if roomMember()
+          && request.resource.data.uid == uid()
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0 && request.resource.data.text.size() <= 1000
+          && request.resource.data.at == request.time;
+        allow delete: if signedIn() && resource.data.uid == uid();
+      }
+    }
+
+    // Invite links: readable by code only (codes are random and unguessable), never listable
+    match /invites/{code} {
+      allow get: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.createdBy == uid()
+        && uid() in get(/databases/$(database)/documents/rooms/$(request.resource.data.roomId)).data.members;
+      allow delete: if signedIn() && resource.data.createdBy == uid();
+    }
+
+    // Reports go to a moderation queue that only the owner (Firebase console) can read
+    match /reports/{id} {
+      allow create: if signedIn() && request.resource.data.by == uid();
+    }
+  }
+}

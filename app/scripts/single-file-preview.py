@@ -21,7 +21,7 @@ for s in scripts:
 html = re.sub(r'<script src="[^"]+"[^>]*></script>', '', html)
 pre = '<script>try{if(location.pathname!=="/")history.replaceState(null,"","/")}catch(e){}</script>'
 html = html.replace('</body>', pre + inl + '</body>')
-html = re.sub(r'<title>.*?</title>', '<title>StoXX</title>', html)
+html = re.sub(r'<title>.*?</title>', '<title>VOLTIX</title>', html)
 os.chdir('..') if False else None
 open(out if os.path.isabs(out) else os.path.join(os.getcwd(), '..', out), 'w').write(html)
 print('written', out)

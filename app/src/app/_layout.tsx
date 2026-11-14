@@ -33,7 +33,12 @@ function EntryGate() {
   const segments = useSegments();
   useEffect(() => {
     const free = segments[0] === 'onboarding' || segments[0] === 'accessibility';
-    if (hydrated && (!accepted || !account) && !free) router.replace('/onboarding');
+    if (hydrated && (!accepted || !account) && !free) {
+      // Remember an invite link so we can open it right after the entry screen
+      const seg = segments as string[];
+      if (seg[0] === 'join' && seg[1]) useApp.getState().setPendingPath(`/join/${seg[1]}`);
+      router.replace('/onboarding');
+    }
   }, [accepted, account, hydrated, segments]);
   return null;
 }
@@ -75,6 +80,9 @@ export default function RootLayout() {
             <Stack.Screen name="add-holding" options={{ presentation: 'modal', title: t('ah_title') }} />
             <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
             <Stack.Screen name="accessibility" options={{ title: t('st_a11y') }} />
+            <Stack.Screen name="chat/[id]" options={{ title: '' }} />
+            <Stack.Screen name="chat/new" options={{ presentation: 'modal', title: t('ch_new') }} />
+            <Stack.Screen name="join/[code]" options={{ title: t('ch_invite_title') }} />
           </Stack>
           <EntryGate />
           </AuthProvider>

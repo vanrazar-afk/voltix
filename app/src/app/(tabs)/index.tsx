@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react';
 import { RefreshControl, ScrollView, SectionList, TextInput, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import Feather from '@expo/vector-icons/Feather';
 import { useData } from '@/lib/data';
 import { colors, fonts, radius, space } from '@/lib/theme';
@@ -9,6 +8,7 @@ import { fmtDate, timeAgo } from '@/lib/format';
 import { useT, sectorName } from '@/lib/i18n';
 import { T, N, Row, Chip, DemoBanner, Disclaimer, LangToggle } from '@/components/ui';
 import { Logo } from '@/components/Logo';
+import { NewsCarousel } from '@/components/NewsCarousel';
 import { RankedRow, StockRow, UnscoredRow } from '@/components/StockRow';
 import type { RankEntry, StockScore } from '@/lib/types';
 
@@ -69,29 +69,7 @@ export default function TopRanking() {
         <LangToggle />
       </Row>
 
-      <LinearGradient colors={['#2A1F6E', '#141C33']} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={{ borderRadius: radius.xl, padding: space(5), gap: space(3) }}>
-        <Row style={{ justifyContent: 'space-between' }}>
-          <View style={{ flex: 1 }}>
-            <T size={13} color={colors.textDim}>
-              {t('daily_rank')} · {fmtDate(report.asOf, t.lang)}
-            </T>
-            <T w="black" size={26}>
-              {t('top50_title')}
-            </T>
-            {!isDemo && (
-              <T size={12} color={colors.textMute}>
-                {t('updated')} {timeAgo(report.generatedAt, t.lang)}
-              </T>
-            )}
-          </View>
-          <Feather name="award" size={30} color={colors.brand2} />
-        </Row>
-        <Row style={{ gap: space(3) }}>
-          <Stat label={t('avg_score')} value={`${avg}`} />
-          <Stat label={t('scanned')} value={`${report.universeSize}`} />
-          <Stat label={t('newcomers')} value={hasPrev ? `${newcomers}` : '—'} />
-        </Row>
-      </LinearGradient>
+      <NewsCarousel items={report.hotNews ?? []} />
 
       {isDemo && <DemoBanner />}
       {error && (
@@ -152,7 +130,18 @@ export default function TopRanking() {
                 {t(ranked ? 'rest_sub' : 'unscored_sub')}
               </T>
             </View>
-          ) : null
+          ) : (
+            <View style={{ paddingTop: space(2), paddingBottom: space(3), backgroundColor: colors.bg }} accessibilityRole="header">
+              <T w="black" size={20}>
+                {t('top50_title')}
+              </T>
+              <T size={12} color={colors.textDim}>
+                {fmtDate(report.asOf, t.lang)}
+                {!isDemo ? ` · ${t('updated')} ${timeAgo(report.generatedAt, t.lang)}` : ''} · {t('avg_score')} {avg}
+                {hasPrev ? ` · ${t('newcomers')} ${newcomers}` : ''}
+              </T>
+            </View>
+          )
         }
         stickySectionHeadersEnabled={false}
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
@@ -165,18 +154,5 @@ export default function TopRanking() {
         refreshControl={<RefreshControl refreshing={loading} onRefresh={refresh} tintColor={colors.brand2} />}
       />
     </SafeAreaView>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <View style={{ flex: 1, backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: radius.md, padding: 10 }}>
-      <N w="black" size={20}>
-        {value}
-      </N>
-      <T size={11} color={colors.textDim}>
-        {label}
-      </T>
-    </View>
   );
 }

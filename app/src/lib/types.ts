@@ -123,6 +123,18 @@ export interface StockScore {
   nextEarningsDate: string | null;
 }
 
+/** A hot market story for the home-screen news carousel. */
+export interface HotNews {
+  id: string;
+  title: string;
+  url: string;
+  source: string;
+  publishedAt: string;
+  outlets: string[];
+  heat: number; // 0–100
+  tickers: string[];
+}
+
 /** Compact ranking row for every scored stock (the full analysis lives in data/stocks/<SYMBOL>.json). */
 export interface RankEntry {
   symbol: string;
@@ -143,6 +155,7 @@ export interface DailyReport {
   ranks?: RankEntry[]; // ALL scored stocks, best first (S&P 500)
   mode?: 'full' | 'quick'; // quick = prices/technicals refreshed, news & fundamentals from the last full run
   fullAt?: string; // when news & fundamentals were last fetched
+  hotNews?: HotNews[]; // hottest market stories right now (refreshed every run)
   quotes: Record<string, { price: number; changePct: number; name: string; sector?: string }>; // whole universe (S&P 500)
   sectorMedians: Record<string, { pe: number | null; netMargin: number | null; revenueGrowthYoY: number | null }>;
   disclaimer: string;

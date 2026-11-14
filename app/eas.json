@@ -3,7 +3,7 @@
   "build": {
     "development": { "developmentClient": true, "distribution": "internal" },
     "preview": { "distribution": "internal", "android": { "buildType": "apk" } },
-    "production": { "autoIncrement": true, "env": { "EXPO_PUBLIC_DATA_URL": "https://YOUR-USER.github.io/stoxx/daily.json" } }
+    "production": { "autoIncrement": true, "env": { "EXPO_PUBLIC_DATA_URL": "https://YOUR-USER.github.io/voltix/data/daily.json" } }
   },
   "submit": { "production": {} }
 }

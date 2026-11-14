@@ -35,6 +35,11 @@ if (googleConfigured) {
   db = getFirestore(app);
 }
 
+/** Firebase handles for other modules (chat). null when Firebase is not configured. */
+export function firebaseHandles() {
+  return { auth, db };
+}
+
 const isStandalone = () => {
   try {
     return typeof window !== 'undefined' && (window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone === true);

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { legacyStorage } from './store';
 import type { Factor, PillarResult, SentimentResult } from './types';
 
 export type Lang = 'he' | 'en';
@@ -10,17 +10,18 @@ const deviceLang: Lang = 'he';
 
 export const useLang = create<{ lang: Lang; setLang: (l: Lang) => void }>()(
   persist((set) => ({ lang: deviceLang, setLang: (lang) => set({ lang }) }), {
-    name: 'stoxx-lang',
-    storage: createJSONStorage(() => AsyncStorage),
+    name: 'voltix-lang',
+    storage: createJSONStorage(() => legacyStorage('stoxx-lang')),
   }),
 );
 
 const D = {
   // tabs
-  tab_rank: ['דירוג יומי', 'Top 50'],
+  tab_rank: ['ראשי', 'Home'],
   tab_portfolio: ['התיק שלי', 'Portfolio'],
   tab_watch: ['מעקב', 'Watchlist'],
-  tab_learn: ['איך זה עובד', 'How it works'],
+  tab_learn: ['מדריך', 'Guide'],
+  tab_chats: ['קבוצות', 'Groups'],
   tab_settings: ['הגדרות', 'Settings'],
   // home
   daily_rank: ['הדירוג היומי', 'Daily ranking'],
@@ -144,6 +145,52 @@ const D = {
   no_score: ['ללא ציון', 'No score'],
   unscored_title: ['שאר מניות S&P 500', 'Rest of the S&P 500'],
   unscored_sub: ['מניות שלא נכנסו ל-50 המובילות — ללא ציון', 'Not in today’s top 50 — no score'],
+  ch_title: ['קבוצות דיון', 'Discussion groups'],
+  ch_sub: ['צ\'אט קבוצתי עם חברים על מניה, על השוק או על התיק — בהזמנה בלבד.', 'Group chats with friends about a stock, the market or your portfolio — invite only.'],
+  ch_new: ['קבוצה חדשה', 'New group'],
+  ch_need_google: ['כדי לפתוח קבוצות ולהצטרף אליהן צריך להתחבר עם חשבון Google — כך החברים יודעים מי כותב.', 'Groups need a Google sign-in so friends know who is writing.'],
+  ch_unavailable: ['קבוצות הדיון יופעלו בקרוב.', 'Discussion groups are coming soon.'],
+  ch_empty: ['אין עדיין קבוצות. פתחו קבוצה חדשה ושלחו קישור הזמנה לחברים.', 'No groups yet. Create one and send friends an invite link.'],
+  ch_members: ['{n} חברים', '{n} members'],
+  ch_rules: ['כללי הקהילה: מדברים בכבוד, בלי הטרדות, ספאם או "טיפים" בתשלום. הדיונים הם בין משתמשים — זה לא ייעוץ השקעות. אפשר לדווח על הודעה בלחיצה ארוכה עליה.', 'Community rules: be respectful — no harassment, spam or paid "tips". Discussions are between users and are not investment advice. Long-press a message to report it.'],
+  ch_name: ['שם הקבוצה', 'Group name'],
+  ch_name_ph: ['למשל: החבר\'ה של NVDA', 'e.g. NVDA crew'],
+  ch_topic: ['נושא', 'Topic'],
+  ch_ticker: ['סימול המניה', 'Stock ticker'],
+  ch_ticker_bad: ['הסימול לא נמצא ב-S&P 500', 'Ticker not found in the S&P 500'],
+  ch_create: ['יצירת הקבוצה', 'Create group'],
+  ch_invite: ['הזמנת חברים', 'Invite friends'],
+  ch_invite_title: ['הזמנה לקבוצה', 'Group invite'],
+  ch_invite_copied: ['הקישור הועתק — שלחו אותו לחברים (בתוקף 7 ימים).', 'Link copied — send it to friends (valid 7 days).'],
+  ch_invite_msg: ['הצטרפו לקבוצה "{n}" ב-VOLTIX:', 'Join my group "{n}" on VOLTIX:'],
+  ch_join: ['הצטרפות לקבוצה', 'Join group'],
+  ch_join_bad: ['ההזמנה לא תקינה או שפג תוקפה. בקשו מחבר קישור חדש.', 'This invite is invalid or expired. Ask a friend for a new link.'],
+  ch_open: ['מעבר לקבוצה', 'Open group'],
+  ch_msg_ph: ['כתבו הודעה… ($AAPL יוצר קישור למניה)', 'Write a message… ($AAPL links the stock)'],
+  ch_send: ['שליחה', 'Send'],
+  ch_leave: ['יציאה מהקבוצה', 'Leave group'],
+  ch_delete: ['מחיקת הקבוצה', 'Delete group'],
+  ch_report: ['דיווח על ההודעה', 'Report message'],
+  ch_reported: ['תודה, הדיווח נשלח לבדיקה.', 'Thanks — the report was sent for review.'],
+  ch_block: ['הסתרת ההודעות של {n}', 'Hide messages from {n}'],
+  ch_unblock: ['ביטול ההסתרה של {n}', 'Unhide {n}'],
+  ch_hidden: ['הודעה מוסתרת', 'Hidden message'],
+  ch_del_msg: ['מחיקת ההודעה', 'Delete message'],
+  ch_first: ['זו תחילת השיחה. הזמינו חברים והתחילו לדבר!', 'This is the start of the chat. Invite friends and start talking!'],
+  ch_gone: ['הקבוצה לא קיימת או שאינך חבר בה.', 'This group does not exist or you are not a member.'],
+  topic_stock: ['מניה', 'A stock'],
+  topic_market: ['השוק', 'The market'],
+  topic_portfolio: ['תיקים', 'Portfolios'],
+  topic_ideas: ['רעיונות', 'Ideas'],
+  topic_earnings: ['דוחות', 'Earnings'],
+  topic_general: ['כללי', 'General'],
+  hot_news: ['חם עכשיו', 'Hot right now'],
+  hot_news_empty: ['החדשות החמות יופיעו כאן בעדכון הבא.', 'The hottest stories will appear here on the next refresh.'],
+  open_article: ['פותח את הכתבה באתר המקור', 'Opens the article on the source site'],
+  covered_by: ['מסוקר ב-{n} אתרים', 'Covered by {n} outlets'],
+  prev_story: ['הכתבה הקודמת', 'Previous story'],
+  next_story: ['הכתבה הבאה', 'Next story'],
+  heat: ['חום', 'Heat'],
   rest_title: ['שאר מניות S&P 500', 'Rest of the S&P 500'],
   rest_sub: ['כל המניות מדורגות — מקום 51 ומטה', 'Every stock is ranked — #51 and below'],
   detail_loading: ['טוען ניתוח…', 'Loading analysis…'],

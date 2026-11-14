@@ -2,6 +2,18 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
+/** AsyncStorage that falls back to the pre-rename (StoXX) key once, so saved data survives the VOLTIX rename. */
+export function legacyStorage(oldName: string) {
+  return {
+    getItem: async (name: string) => (await AsyncStorage.getItem(name)) ?? (await AsyncStorage.getItem(oldName)),
+    setItem: (name: string, value: string) => AsyncStorage.setItem(name, value),
+    removeItem: async (name: string) => {
+      await AsyncStorage.removeItem(name);
+      await AsyncStorage.removeItem(oldName);
+    },
+  };
+}
+
 export interface Lot {
   id: string;
   symbol: string;
@@ -31,6 +43,12 @@ interface AppState {
   removeLot: (id: string) => void;
   toggleWatch: (symbol: string) => void;
   resetAll: () => void;
+  /** Where to go after onboarding/sign-in (e.g. a group-chat invite link opened before entering the app). */
+  pendingPath: string | null;
+  setPendingPath: (p: string | null) => void;
+  /** Chat members whose messages this user chose to hide (stays on the device). */
+  blocked: string[];
+  toggleBlock: (uid: string) => void;
 }
 
 /**
@@ -54,8 +72,12 @@ export const useApp = create<AppState>()(
         set((s) => ({
           watchlist: s.watchlist.includes(symbol) ? s.watchlist.filter((x) => x !== symbol) : [...s.watchlist, symbol],
         })),
-      resetAll: () => set({ lots: [], watchlist: [], disclaimerAcceptedAt: null, account: null }),
+      resetAll: () => set({ lots: [], watchlist: [], disclaimerAcceptedAt: null, account: null, blocked: [], pendingPath: null }),
+      pendingPath: null,
+      setPendingPath: (pendingPath) => set({ pendingPath }),
+      blocked: [],
+      toggleBlock: (uid) => set((s) => ({ blocked: s.blocked.includes(uid) ? s.blocked.filter((x) => x !== uid) : [...s.blocked, uid] })),
     }),
-    { name: 'stoxx-user', storage: createJSONStorage(() => AsyncStorage), version: 2, migrate: (s: any) => ({ account: null, ...s }) },
+    { name: 'voltix-user', storage: createJSONStorage(() => legacyStorage('stoxx-user')), version: 3, migrate: (s: any) => ({ account: null, blocked: [], pendingPath: null, ...s }) },
   ),
 );

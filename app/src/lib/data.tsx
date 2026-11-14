@@ -12,7 +12,7 @@ import demo from '../data/demo-daily.json';
  *   2. Otherwise → bundled demo file (synthetic data, clearly labelled in the UI)
  */
 const DATA_URL: string = process.env.EXPO_PUBLIC_DATA_URL || (Constants.expoConfig?.extra?.dataUrl as string) || '';
-const CACHE_KEY = 'stoxx-report-cache';
+const CACHE_KEY = 'voltix-report-cache';
 /** Folder that holds daily.json and charts/<SYMBOL>.json */
 export const DATA_BASE = DATA_URL ? DATA_URL.replace(/[^/]*$/, '') : '';
 

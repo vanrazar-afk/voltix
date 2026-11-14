@@ -7,6 +7,7 @@ import * as WebBrowser from 'expo-web-browser';
 import Feather from '@expo/vector-icons/Feather';
 import { useApp } from '@/lib/store';
 import { useAuth } from '@/lib/auth';
+import { leaveAllRooms } from '@/lib/chat';
 import { colors, space } from '@/lib/theme';
 import { useT } from '@/lib/i18n';
 import { T, Row, Card, Disclaimer, LangToggle } from '@/components/ui';
@@ -78,7 +79,7 @@ export default function Settings() {
                 icon="user-x"
                 danger
                 label={armedLabel('acct', t('st_delete_account'))}
-                onPress={() => confirm('acct', t('st_delete_account'), t('st_delete_account_b'), () => void auth.deleteAccount().catch(() => {}))}
+                onPress={() => confirm('acct', t('st_delete_account'), t('st_delete_account_b'), () => void leaveAllRooms().finally(() => auth.deleteAccount().catch(() => {})))}
               />
             </>
           ) : (

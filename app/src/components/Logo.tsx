@@ -1,9 +1,9 @@
 import { View } from 'react-native';
-import Svg, { Circle, Defs, LinearGradient, Stop, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Text as SvgText } from 'react-native-svg';
 import { colors, fonts } from '@/lib/theme';
 import { T } from './ui';
 
-/** VOLTIX mark: a three-colour ring (technical · fundamental · sentiment) with "VX" inside. */
+/** VOLTIX mark: a three-colour ring (technical · fundamental · sentiment) with white "VX" inside. */
 export function Logo({ size = 40, withName = false }: { size?: number; withName?: boolean }) {
   const stroke = Math.max(3, size * 0.09);
   const r = (size - stroke) / 2;
@@ -13,12 +13,6 @@ export function Logo({ size = 40, withName = false }: { size?: number; withName?
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: size * 0.28 }} accessible accessibilityRole="image" accessibilityLabel="VOLTIX">
       <Svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        <Defs>
-          <LinearGradient id="vx" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={colors.tech} />
-            <Stop offset="1" stopColor={colors.fund} />
-          </LinearGradient>
-        </Defs>
         {ring.map((col, i) => (
           <Circle
             key={i}
@@ -39,7 +33,7 @@ export function Logo({ size = 40, withName = false }: { size?: number; withName?
           fontSize={size * 0.38}
           fontFamily={fonts.black}
           fontWeight="900"
-          fill="url(#vx)"
+          fill="#FFFFFF"
           textAnchor="middle"
           letterSpacing={-size * 0.01}
         >

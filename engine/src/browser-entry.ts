@@ -1,6 +1,6 @@
 /**
  * Runs the whole engine INSIDE a browser tab on query1.finance.yahoo.com (same-origin → no CORS),
- * using only free, key-less Yahoo endpoints + the open S&P 500 list. Result: window.__stoxx.report
+ * using only free, key-less Yahoo endpoints + the open S&P 500 list. Result: window.__voltix.report
  * Bundle: npx esbuild src/browser-entry.ts --bundle --format=iife --outfile=out/browser-engine.js
  */
 import { buildReport } from './rank.js';
@@ -15,7 +15,7 @@ const GICS: Record<string, string> = {
   Materials: 'Basic Materials', 'Real Estate': 'Real Estate', Utilities: 'Utilities',
 };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const state: any = ((window as any).__stoxx = { done: 0, total: 0, errors: [] as string[], status: 'starting', report: null });
+const state: any = ((window as any).__voltix = { done: 0, total: 0, errors: [] as string[], status: 'starting', report: null });
 
 const get = async (url: string, tries = 3): Promise<any> => {
   for (let t = 1; ; t++) {
@@ -58,4 +58,4 @@ export async function run(opts: { crumb: string; limit?: number; concurrency?: n
   return { loaded: inputs.length, top1: report.top[0]?.symbol };
 }
 
-(window as any).__stoxxRun = run;
+(window as any).__voltixRun = run;
