@@ -8,6 +8,7 @@ import { useAuth } from '@/lib/auth';
 import { chatAvailable, useMyRooms, type Room } from '@/lib/chat';
 import { timeAgo } from '@/lib/format';
 import { T, N, Row, Card, Button } from '@/components/ui';
+import { TabHeader } from '@/components/ProfileMenu';
 
 export default function Chats() {
   const t = useT();
@@ -17,11 +18,11 @@ export default function Chats() {
 
   const Head = (
     <View style={{ gap: space(2), marginBottom: space(4) }}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <T w="black" size={26} accessibilityRole="header">
-          {t('ch_title')}
-        </T>
-        {available && uid && (
+      <TabHeader
+        title={t('ch_title')}
+        trailing={
+          available &&
+          uid && (
           <Pressable
             onPress={() => router.push('/chat/new')}
             accessibilityRole="button"
@@ -33,8 +34,9 @@ export default function Chats() {
               {t('ch_new')}
             </T>
           </Pressable>
-        )}
-      </Row>
+          )
+        }
+      />
       <T color={colors.textDim} size={14}>
         {t('ch_sub')}
       </T>

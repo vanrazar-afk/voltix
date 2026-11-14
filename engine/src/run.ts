@@ -9,7 +9,7 @@ import { buildReport, buildRanking } from './rank.js';
 import { mockUniverse } from './providers/mock.js';
 import { loadStock, loadUniverse, limiter } from './providers/live.js';
 import { loadFreeInputs, type InputCache } from './providers/free.js';
-import { loadHotNews } from './providers/marketnews.js';
+import { loadMarketNews } from './providers/marketnews.js';
 import { claudeClassifier, lexiconClassifier } from './scoring/sentiment.js';
 import type { ChartFile, DailyReport, NewsItem, StockInput } from './types.js';
 import { mergeNews } from './providers/googlenews.js';
@@ -90,8 +90,14 @@ async function main() {
   report.mode = mode;
   // Hottest market stories (every run — a dozen RSS calls). Mock/offline runs keep the previous list.
   if (!args.has('--mock') && !args.has('--inputs') && ![...args].some((a) => a.startsWith('--inputs='))) {
-    const hot = await loadHotNews(inputs.map((s) => ({ symbol: s.profile.symbol, name: s.profile.name })), (m) => console.log(m)).catch(() => []);
-    report.hotNews = hot.length ? hot : previous?.hotNews ?? [];
+    // Reuse earlier Hebrew translations (by story id) so each headline is translated once
+    const tr = new Map<string, string>();
+    for (const n of [...(previous?.hotNews ?? []), ...(previous?.marketNews ?? [])]) if (n.titleHe) tr.set(n.id, n.titleHe);
+    const news = await loadMarketNews(inputs.map((s) => ({ symbol: s.profile.symbol, name: s.profile.name })), (m) => console.log(m), tr).catch(
+      () => ({ hot: [], impact: [] }),
+    );
+    report.hotNews = news.hot.length ? news.hot : previous?.hotNews ?? [];
+    report.marketNews = news.impact.length ? news.impact : previous?.marketNews ?? [];
   }
   if (cache) report.fullAt = cache.fetchedAt;
 

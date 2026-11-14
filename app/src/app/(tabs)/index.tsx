@@ -6,8 +6,8 @@ import { useData } from '@/lib/data';
 import { colors, fonts, radius, space } from '@/lib/theme';
 import { fmtDate, timeAgo } from '@/lib/format';
 import { useT, sectorName } from '@/lib/i18n';
-import { T, N, Row, Chip, DemoBanner, Disclaimer, LangToggle } from '@/components/ui';
-import { Logo } from '@/components/Logo';
+import { T, N, Row, Chip, DemoBanner, Disclaimer } from '@/components/ui';
+import { TabHeader } from '@/components/ProfileMenu';
 import { NewsCarousel } from '@/components/NewsCarousel';
 import { RankedRow, StockRow, UnscoredRow } from '@/components/StockRow';
 import type { RankEntry, StockScore } from '@/lib/types';
@@ -64,10 +64,13 @@ export default function TopRanking() {
 
   const Header = (
     <View style={{ gap: space(4), marginBottom: space(3) }}>
-      <Row style={{ justifyContent: 'space-between' }}>
-        <Logo size={34} withName />
-        <LangToggle />
-      </Row>
+      <TabHeader
+        title={
+          <T w="black" size={24} style={{ letterSpacing: 2, writingDirection: 'ltr' }} accessibilityRole="header">
+            VOLTIX
+          </T>
+        }
+      />
 
       <NewsCarousel items={report.hotNews ?? []} />
 

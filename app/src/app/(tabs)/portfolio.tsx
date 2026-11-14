@@ -13,6 +13,7 @@ import { tradeBlock, useMarketStatus } from '@/lib/market';
 import { T, N, Row, Card, Button, SectionTitle, Disclaimer, Delta } from '@/components/ui';
 import { ScoreRing } from '@/components/charts';
 import { MarketBadge } from '@/components/MarketBadge';
+import { TabHeader } from '@/components/ProfileMenu';
 
 const PALETTE = ['#7C5CFF', '#3DD6F5', '#2BD98B', '#FFB547', '#FF5C7A', '#A78BFA', '#5EEAD4', '#F472B6', '#FACC15', '#60A5FA'];
 const ret = (buy: number, now: number) => (buy > 0 ? ((now - buy) / buy) * 100 : 0);
@@ -89,6 +90,7 @@ export default function Portfolio() {
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
       <ScrollView contentContainerStyle={{ padding: space(4), gap: space(4), paddingBottom: space(12), maxWidth: 760, width: '100%', alignSelf: 'center' }}>
+        <TabHeader title={t('tab_portfolio')} />
         <LinearGradient colors={['#123A4A', '#141C33']} start={{ x: 1, y: 0 }} end={{ x: 0, y: 1 }} style={{ borderRadius: radius.xl, padding: space(5), gap: space(3) }}>
           <MarketBadge status={market} />
           <Row style={{ gap: space(3) }}>

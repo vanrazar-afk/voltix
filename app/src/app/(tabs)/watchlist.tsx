@@ -6,6 +6,7 @@ import { useApp } from '@/lib/store';
 import { useData } from '@/lib/data';
 import { colors, radius, space } from '@/lib/theme';
 import { usd } from '@/lib/format';
+import { TabHeader } from '@/components/ProfileMenu';
 import { useT } from '@/lib/i18n';
 import { T, N, Row, Card, Delta } from '@/components/ui';
 import { StockRow } from '@/components/StockRow';
@@ -24,7 +25,7 @@ export default function Watchlist() {
         contentContainerStyle={{ padding: space(4), gap: 10 }}
         ListHeaderComponent={
           <View style={{ marginBottom: space(2) }}>
-            <T w="black" size={26}>{t('wl_title')}</T>
+            <TabHeader title={t('wl_title')} />
             <T size={13} color={colors.textDim}>{t('wl_sub')}</T>
           </View>
         }

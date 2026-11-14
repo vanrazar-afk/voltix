@@ -131,7 +131,10 @@ export interface HotNews {
   source: string;
   publishedAt: string;
   outlets: string[];
-  heat: number; // 0–100
+  heat: number; // 0–100 (buzz)
+  impact?: number; // 0–100 (estimated market impact)
+  category?: string; // macro | policy | indices | energy | geo | earnings | deals | tech | crypto | company | markets
+  titleHe?: string; // Hebrew translation
   tickers: string[];
 }
 
@@ -156,6 +159,7 @@ export interface DailyReport {
   mode?: 'full' | 'quick'; // quick = prices/technicals refreshed, news & fundamentals from the last full run
   fullAt?: string; // when news & fundamentals were last fetched
   hotNews?: HotNews[]; // hottest market stories right now (refreshed every run)
+  marketNews?: HotNews[]; // News page: stories ranked by market impact
   quotes: Record<string, { price: number; changePct: number; name: string; sector?: string }>; // whole universe (S&P 500)
   sectorMedians: Record<string, { pe: number | null; netMargin: number | null; revenueGrowthYoY: number | null }>;
   disclaimer: string;

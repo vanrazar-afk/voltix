@@ -80,6 +80,8 @@ export default function RootLayout() {
             <Stack.Screen name="add-holding" options={{ presentation: 'modal', title: t('ah_title') }} />
             <Stack.Screen name="onboarding" options={{ headerShown: false, gestureEnabled: false }} />
             <Stack.Screen name="accessibility" options={{ title: t('st_a11y') }} />
+            <Stack.Screen name="guide" options={{ title: '' }} />
+            <Stack.Screen name="settings" options={{ title: '' }} />
             <Stack.Screen name="chat/[id]" options={{ title: '' }} />
             <Stack.Screen name="chat/new" options={{ presentation: 'modal', title: t('ch_new') }} />
             <Stack.Screen name="join/[code]" options={{ title: t('ch_invite_title') }} />

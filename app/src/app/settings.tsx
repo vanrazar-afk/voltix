@@ -47,7 +47,7 @@ export default function Settings() {
   const armedLabel = (key: string, label: string) => (armed === key ? `${label} — ${t('delete')}?` : label);
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['bottom']}>
       <ScrollView contentContainerStyle={{ padding: space(4), gap: space(4), paddingBottom: space(12), maxWidth: 760, width: '100%', alignSelf: 'center' }}>
         <T w="black" size={26} accessibilityRole="header">
           {t('st_title')}

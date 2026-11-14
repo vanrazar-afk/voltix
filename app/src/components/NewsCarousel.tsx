@@ -9,6 +9,7 @@ import { useT } from '@/lib/i18n';
 import { timeAgo } from '@/lib/format';
 import type { HotNews } from '@/lib/types';
 import { T, N, Row } from './ui';
+import { newsTitle } from '@/lib/news';
 
 export const NEWS_CARD_HEIGHT = 178;
 const AUTO_MS = 7000;
@@ -94,7 +95,7 @@ export function NewsCarousel({ items }: { items: HotNews[] }) {
               key={n.id + i}
               onPress={() => WebBrowser.openBrowserAsync(n.url)}
               accessibilityRole="link"
-              accessibilityLabel={`${n.title}. ${n.source}, ${timeAgo(n.publishedAt, t.lang)}`}
+              accessibilityLabel={`${newsTitle(n, t.lang).text}. ${n.source}, ${timeAgo(n.publishedAt, t.lang)}`}
               accessibilityHint={t('open_article')}
               style={{ width: w, height: NEWS_CARD_HEIGHT }}
             >
@@ -115,8 +116,13 @@ export function NewsCarousel({ items }: { items: HotNews[] }) {
                     {n.source} · {timeAgo(n.publishedAt, t.lang)}
                   </T>
                 </Row>
-                <T w="bold" size={18} numberOfLines={3} style={{ writingDirection: 'ltr', textAlign: 'left', lineHeight: 25 }}>
-                  {n.title}
+                <T
+                  w="bold"
+                  size={18}
+                  numberOfLines={3}
+                  style={newsTitle(n, t.lang).rtl ? { writingDirection: 'rtl', textAlign: 'right', lineHeight: 25 } : { writingDirection: 'ltr', textAlign: 'left', lineHeight: 25 }}
+                >
+                  {newsTitle(n, t.lang).text}
                 </T>
                 <View style={{ flex: 1 }} />
                 <Row style={{ justifyContent: 'space-between', gap: 8 }}>

@@ -77,7 +77,7 @@ export default function Learn() {
   const { lang } = useT();
   const [open, setOpen] = useState<number | null>(null);
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['top']}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: colors.bg }} edges={['bottom']}>
       <ScrollView contentContainerStyle={{ padding: space(4), gap: space(4), paddingBottom: space(12) }}>
         <View>
           <T w="black" size={26}>{TEXT.title[lang]}</T>

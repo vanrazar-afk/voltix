@@ -63,6 +63,45 @@ service cloud.firestore {
       allow delete: if signedIn() && resource.data.createdBy == uid();
     }
 
+    // ---- Trading league ----
+    // Unique nicknames (lower-case key)
+    match /nicknames/{nick} {
+      allow get: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.uid == uid()
+        && request.resource.data.nickname is string
+        && request.resource.data.nickname.size() >= 2 && request.resource.data.nickname.size() <= 20
+        && nick == request.resource.data.nickname.lower();
+      allow delete: if signedIn() && resource.data.uid == uid();
+    }
+
+    // One portfolio per player: $100,000 start, ≤4 actions per trading day, weekdays inside the US session window.
+    // (13:30–21:00 UTC covers 9:30–16:00 New York in both summer and winter time; the app enforces the exact
+    //  session, holidays and current market prices.)
+    match /league/{userId} {
+      function today() { return math.floor(request.time.toMillis() / 86400000); }
+      function sessionWindow() {
+        let m = request.time.hours() * 60 + request.time.minutes();
+        return request.time.dayOfWeek() >= 1 && request.time.dayOfWeek() <= 5 && m >= 810 && m < 1260;
+      }
+      allow read: if signedIn();
+      allow create: if signedIn() && uid() == userId
+        && request.resource.data.cash == 100000
+        && request.resource.data.holdings == {}
+        && request.resource.data.dayCount == 0
+        && request.resource.data.nickname is string
+        && getAfter(/databases/$(database)/documents/nicknames/$(request.resource.data.nickname.lower())).data.uid == uid();
+      allow update: if signedIn() && uid() == userId
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['cash', 'holdings', 'day', 'dayCount', 'log'])
+        && request.resource.data.cash is number && request.resource.data.cash >= 0
+        && sessionWindow()
+        && request.resource.data.day == today()
+        && request.resource.data.dayCount == (resource.data.day == today() ? resource.data.dayCount + 1 : 1)
+        && request.resource.data.dayCount <= 4
+        && request.resource.data.log.size() <= 40;
+      allow delete: if signedIn() && uid() == userId;
+    }
+
     // Reports go to a moderation queue that only the owner (Firebase console) can read
     match /reports/{id} {
       allow create: if signedIn() && request.resource.data.by == uid();

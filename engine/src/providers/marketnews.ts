@@ -30,7 +30,38 @@ export const FEEDS: { url: string; source?: string; weight: number }[] = [
   { url: gn('site:reuters.com markets when:1d'), weight: 1 },
   { url: gn('site:wsj.com markets when:1d'), weight: 1 },
   { url: gn('site:ft.com markets when:1d'), weight: 0.9 },
+  { url: 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=15839135', source: 'CNBC', weight: 0.9 }, // earnings
+  { url: 'https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664', source: 'CNBC', weight: 0.9 }, // finance
+  { url: 'https://feeds.content.dowjones.io/public/rss/mw_realtimeheadlines', source: 'MarketWatch', weight: 0.7 },
+  { url: gn('site:apnews.com business when:1d'), weight: 0.9 },
+  { url: gn('site:barrons.com when:1d'), weight: 0.9 },
+  { url: gn('site:economist.com finance when:2d'), weight: 0.7 },
+  { url: gn('site:axios.com markets when:1d'), weight: 0.7 },
+  { url: gn('site:foxbusiness.com markets when:1d'), weight: 0.7 },
+  { url: gn('site:cnn.com business markets when:1d'), weight: 0.7 },
+  { url: gn('site:fortune.com finance when:1d'), weight: 0.6 },
+  { url: gn('site:businessinsider.com markets when:1d'), weight: 0.6 },
+  { url: gn('site:forbes.com markets when:1d'), weight: 0.5 },
+  { url: gn('site:benzinga.com when:1d'), weight: 0.5 },
+  { url: gn('site:morningstar.com when:2d'), weight: 0.5 },
+  { url: gn('site:fool.com when:1d'), weight: 0.4 },
+  { url: gn('federal reserve OR inflation OR "jobs report" OR tariffs when:1d'), weight: 1 },
+  { url: gn('earnings guidance stock when:1d'), weight: 0.8 },
 ];
+
+/** Market-impact topics (first match wins for the label; weight = how much the topic moves the whole market). */
+export const TOPICS: { key: string; weight: number; re: RegExp }[] = [
+  { key: 'macro', weight: 1, re: /\b(fed|federal reserve|powell|fomc|rate (cut|hike)s?|interest rates?|inflation|cpi|pce|jobs report|payrolls|unemployment|jobless|gdp|recession|treasury yields?|bond yields?|10-year)\b/i },
+  { key: 'policy', weight: 0.85, re: /\b(tariffs?|trade (war|deal|talks)|sanctions?|export controls?|white house|congress|shutdown|debt ceiling|stimulus|tax (bill|cut)s?|regulators?|antitrust|sec\b)/i },
+  { key: 'indices', weight: 0.8, re: /\b(s&p 500|nasdaq|dow( jones)?|wall street|stock market|stocks (rally|fall|slide|drop|jump|surge|tumble|rise|sink)|record high|sell-?off|futures)\b/i },
+  { key: 'energy', weight: 0.75, re: /\b(oil|crude|opec|brent|natural gas|gasoline)\b/i },
+  { key: 'geo', weight: 0.7, re: /\b(war|ukraine|russia|china|taiwan|middle east|iran|israel|missile|ceasefire)\b/i },
+  { key: 'earnings', weight: 0.6, re: /\b(earnings|quarterly|revenue|profit|guidance|forecast|results|beats?|miss(es)?|outlook)\b/i },
+  { key: 'deals', weight: 0.55, re: /\b(merger|acquir(e|es|ed|ing)|acquisition|buyout|takeover|deal|ipo|stake)\b/i },
+  { key: 'tech', weight: 0.5, re: /\b(ai|chips?|semiconductors?|cloud|data[- ]cent(er|re))\b/i },
+  { key: 'crypto', weight: 0.4, re: /\b(bitcoin|crypto|ether(eum)?)\b/i },
+];
+const MEGA = new Set(['AAPL', 'MSFT', 'NVDA', 'GOOGL', 'GOOG', 'AMZN', 'META', 'TSLA', 'AVGO', 'BRK.B', 'JPM', 'LLY', 'V', 'WMT', 'XOM', 'MA', 'ORCL', 'NFLX', 'COST', 'UNH']);
 
 const TIER1 = /reuters|bloomberg|wall street journal|wsj|financial times|cnbc|marketwatch|barron|associated press|yahoo finance|the economist|axios|new york times/i;
 
@@ -118,7 +149,18 @@ const ALIASES: Record<string, string> = {
 
 const JUNK = /^(live:|watch:|video:|podcast|newsletter|opinion:|quiz|crossword|horoscope)|sponsored|stock price|price target & analyst|^(I|I['’]m|My|We|We['’]re)\b.*\?$|\bam I wrong\b|\bshould I\b|\bmy (husband|wife|father|mother|son|daughter|kids?)\b|\bI inherited\b/i;
 
-export function rankHotNews(items: Raw[], now: number, companies: { symbol: string; name: string }[], limit = 12): HotNews[] {
+interface Story {
+  rep: Raw;
+  outlets: string[];
+  heatRaw: number;
+  impactRaw: number;
+  category: string;
+  newest: number;
+  tickers: string[];
+}
+
+/** Cluster headlines into stories and score each for heat (buzz) and market impact. */
+export function buildStories(items: Raw[], now: number, companies: { symbol: string; name: string }[]): Story[] {
   const fresh = items.filter((r) => now - r.at < 36 * 3600e3 && r.at - now < 3600e3 && !JUNK.test(r.title));
   // The headline we would show must itself be about money (not just one syndicated variant)
   const financial = (c: { raws: Raw[] }) => c.raws.filter((r) => FINANCE.test(r.title)).length * 2 >= c.raws.length;
@@ -140,38 +182,90 @@ export function rankHotNews(items: Raw[], now: number, companies: { symbol: stri
     .filter((c) => c.re.source.length > 6 && !GENERIC_NAMES.test(cleanCompanyName(companies.find((x) => x.symbol === c.symbol)!.name)));
   const symbols = new Set(companies.map((c) => c.symbol));
 
-  const scored = clusters.filter(financial).map((c) => {
+  return clusters.filter(financial).map((c) => {
     const outlets = [...new Set(c.raws.map((r) => r.source))];
     const coverage = outlets.reduce((a, o) => a + (TIER1.test(o) ? 1.5 : 1), 0);
     const prominence = Math.max(...c.raws.map((r) => r.weight * Math.max(0, 1 - r.pos / 25)));
     const newest = Math.max(...c.raws.map((r) => r.at));
     const freshness = Math.pow(0.5, (now - newest) / (6 * 3600e3));
-    const raw = (coverage * 1.2 + prominence * 2) * (0.35 + 0.65 * freshness);
+    const heatRaw = (coverage * 1.2 + prominence * 2) * (0.35 + 0.65 * freshness);
     // Representative headline: tier-1 outlet first, then the most prominent, then newest
-    const rep = [...c.raws].sort(
-      (a, b) => Number(TIER1.test(b.source)) - Number(TIER1.test(a.source)) || a.pos - b.pos || b.at - a.at,
-    )[0];
+    const rep = [...c.raws].sort((a, b) => Number(TIER1.test(b.source)) - Number(TIER1.test(a.source)) || a.pos - b.pos || b.at - a.at)[0];
     const explicit = [...rep.title.matchAll(/[($]([A-Z]{1,5}(?:\.[A-Z])?)\)?/g)].map((m) => m[1]).filter((x) => symbols.has(x));
     const tickers = [...new Set([...explicit, ...names.filter((n) => n.re.test(rep.title)).map((n) => n.symbol)])].slice(0, 4);
-    return { rep, outlets, raw, newest, tickers };
+    // Market impact: topic weight (how broadly it moves stocks) × breadth of coverage × freshness, plus mega-cap weight
+    const text = c.raws.map((r) => r.title).join(' | ');
+    const topic = TOPICS.find((t) => t.re.test(text));
+    const topicW = topic?.weight ?? 0.3;
+    const mega = tickers.some((t) => MEGA.has(t)) ? 0.3 : tickers.length ? 0.1 : 0;
+    const breadth = Math.min(1, coverage / 6);
+    const impactRaw = (topicW + mega) * (0.45 + 0.55 * breadth) * (0.4 + 0.6 * freshness) * (0.8 + 0.2 * prominence);
+    return { rep, outlets, heatRaw, impactRaw, category: topic?.key ?? (tickers.length ? 'company' : 'markets'), newest, tickers };
   });
-
-  scored.sort((a, b) => b.raw - a.raw);
-  const top = scored.slice(0, limit);
-  const max = top[0]?.raw || 1;
-  return top.map((s) => ({
-    id: Buffer.from(s.rep.url).toString('base64url').slice(-16),
-    title: s.rep.title,
-    url: s.rep.url,
-    source: s.rep.source,
-    publishedAt: new Date(s.newest).toISOString(),
-    outlets: s.outlets,
-    heat: Math.max(1, Math.round((s.raw / max) * 100)),
-    tickers: s.tickers,
-  }));
 }
 
-export async function loadHotNews(companies: { symbol: string; name: string }[], log: (s: string) => void = () => {}): Promise<HotNews[]> {
+const toNews = (s: Story, heatMax: number, impactMax: number): HotNews => ({
+  id: Buffer.from(s.rep.url).toString('base64url').slice(-16),
+  title: s.rep.title,
+  url: s.rep.url,
+  source: s.rep.source,
+  publishedAt: new Date(s.newest).toISOString(),
+  outlets: s.outlets,
+  heat: Math.max(1, Math.round((s.heatRaw / heatMax) * 100)),
+  impact: Math.max(1, Math.round((s.impactRaw / impactMax) * 100)),
+  category: s.category,
+  tickers: s.tickers,
+});
+
+export function rankHotNews(items: Raw[], now: number, companies: { symbol: string; name: string }[], limit = 12): HotNews[] {
+  return rankNews(items, now, companies, limit, 0).hot;
+}
+
+/** hot = carousel (by buzz); impact = News page (by market impact). */
+export function rankNews(items: Raw[], now: number, companies: { symbol: string; name: string }[], hotN = 12, impactN = 40) {
+  const stories = buildStories(items, now, companies);
+  const heatMax = Math.max(1e-9, ...stories.map((s) => s.heatRaw));
+  const impactMax = Math.max(1e-9, ...stories.map((s) => s.impactRaw));
+  const hot = [...stories].sort((a, b) => b.heatRaw - a.heatRaw).slice(0, hotN).map((s) => toNews(s, heatMax, impactMax));
+  const impact = [...stories].sort((a, b) => b.impactRaw - a.impactRaw).slice(0, impactN).map((s) => toNews(s, heatMax, impactMax));
+  return { hot, impact };
+}
+
+/**
+ * Translate headlines to Hebrew (free Google Translate web endpoint, batched; cached by story id across runs).
+ * Falls back to English silently if the service is unavailable.
+ */
+export async function translateTitles(news: HotNews[], cache: Map<string, string>, log: (s: string) => void = () => {}) {
+  for (const n of news) if (cache.has(n.id)) n.titleHe = cache.get(n.id);
+  const todo = news.filter((n) => !n.titleHe);
+  for (let i = 0; i < todo.length; i += 20) {
+    const batch = todo.slice(i, i + 20);
+    try {
+      const q = batch.map((n) => n.title.replace(/\n/g, ' ')).join('\n');
+      const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=iw&dt=t&q=${encodeURIComponent(q)}`;
+      const res = await fetch(url, { headers: UA, signal: AbortSignal.timeout(15000) });
+      if (!res.ok) throw new Error(String(res.status));
+      const data = (await res.json()) as [[string, string][]];
+      const out = data[0].map((seg) => seg[0]).join('').split('\n');
+      batch.forEach((n, j) => {
+        const he = out[j]?.trim();
+        if (he) {
+          n.titleHe = he;
+          cache.set(n.id, he);
+        }
+      });
+    } catch (e) {
+      log(`translate failed: ${(e as Error).message}`);
+      return;
+    }
+  }
+}
+
+export async function loadMarketNews(
+  companies: { symbol: string; name: string }[],
+  log: (s: string) => void = () => {},
+  translations: Map<string, string> = new Map(),
+): Promise<{ hot: HotNews[]; impact: HotNews[] }> {
   const all: Raw[] = [];
   await Promise.all(
     FEEDS.map(async (f) => {
@@ -185,7 +279,8 @@ export async function loadHotNews(companies: { symbol: string; name: string }[],
       }
     }),
   );
-  const ranked = rankHotNews(all, Date.now(), companies);
-  log(`hot news: ${all.length} headlines → ${ranked.length} stories`);
+  const ranked = rankNews(all, Date.now(), companies);
+  await translateTitles([...ranked.hot, ...ranked.impact], translations, log);
+  log(`news: ${all.length} headlines from ${new Set(all.map((r) => r.source)).size} outlets → ${ranked.hot.length} hot, ${ranked.impact.length} by impact`);
   return ranked;
 }
