@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { I18nManager, Platform, View } from 'react-native';
+import { I18nManager, Platform, Pressable, Text, View } from 'react-native';
 import { useLang, useT } from '@/lib/i18n';
 import { Stack, router, useSegments } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -92,5 +92,24 @@ export default function RootLayout() {
         </DataProvider>
       </View>
     </SafeAreaProvider>
+  );
+}
+
+/** Instead of a blank (black) screen on a crash: show what failed + reload. */
+export function ErrorBoundary({ error, retry }: { error: Error; retry: () => Promise<void> }) {
+  const reload = () => {
+    if (Platform.OS === 'web' && typeof window !== 'undefined') window.location.reload();
+    else retry();
+  };
+  return (
+    <View style={{ flex: 1, backgroundColor: '#0A0F1F', padding: 24, justifyContent: 'center', gap: 14 }}>
+      <Text style={{ color: '#fff', fontSize: 20, fontWeight: '800', textAlign: 'center' }}>משהו השתבש · Something went wrong</Text>
+      <Text selectable style={{ color: '#FFB547', fontSize: 13, textAlign: 'left', writingDirection: 'ltr' }}>
+        {String(error?.message ?? error).slice(0, 400)}
+      </Text>
+      <Pressable onPress={reload} accessibilityRole="button" style={{ backgroundColor: '#6A48F5', borderRadius: 12, paddingVertical: 14, alignItems: 'center' }}>
+        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>טעינה מחדש · Reload</Text>
+      </Pressable>
+    </View>
   );
 }

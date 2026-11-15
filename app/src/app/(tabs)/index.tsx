@@ -8,6 +8,7 @@ import { fmtDate, timeAgo } from '@/lib/format';
 import { useT, sectorName } from '@/lib/i18n';
 import { T, N, Row, Chip, DemoBanner, Disclaimer } from '@/components/ui';
 import { TabHeader } from '@/components/ProfileMenu';
+import { useAuth } from '@/lib/auth';
 import { NewsCarousel } from '@/components/NewsCarousel';
 import { RankedRow, StockRow, UnscoredRow } from '@/components/StockRow';
 import type { RankEntry, StockScore } from '@/lib/types';
@@ -17,6 +18,7 @@ type Sort = 'score' | 'technical' | 'fundamental' | 'sentiment';
 export default function TopRanking() {
   const t = useT();
   const { report, isDemo, loading, refresh, error } = useData();
+  const auth = useAuth();
   const [q, setQ] = useState('');
   const [sector, setSector] = useState<string | null>(null);
   const [sort, setSort] = useState<Sort>('score');
@@ -72,6 +74,11 @@ export default function TopRanking() {
         }
       />
 
+      {!!auth.error && (
+        <T size={12} color={colors.warn} style={{ marginBottom: 8 }} accessibilityLiveRegion="polite">
+          {t('login_failed')}: {auth.error}
+        </T>
+      )}
       <NewsCarousel items={report.hotNews ?? []} />
 
       {isDemo && <DemoBanner />}

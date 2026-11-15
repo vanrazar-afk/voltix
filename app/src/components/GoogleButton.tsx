@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { Platform, View } from 'react-native';
 import Constants from 'expo-constants';
-import { useAuth } from '@/lib/auth';
+import { preferGoogleRedirect, startGoogleRedirect, useAuth } from '@/lib/auth';
+import { useApp } from '@/lib/store';
 import { useT } from '@/lib/i18n';
 import { colors } from '@/lib/theme';
 import { T, Button } from './ui';
@@ -57,6 +58,7 @@ export function GoogleButton({ onBefore, width = 300 }: { onBefore?: () => void;
   const auth = useAuth();
   const ref = useRef<unknown>(null);
   const [failed, setFailed] = useState(false);
+  const [redirect] = useState(preferGoogleRedirect);
 
   useEffect(() => {
     beforeSignIn = onBefore ?? null;
@@ -67,7 +69,7 @@ export function GoogleButton({ onBefore, width = 300 }: { onBefore?: () => void;
   });
 
   useEffect(() => {
-    if (Platform.OS !== 'web' || !CLIENT_ID) return;
+    if (Platform.OS !== 'web' || !CLIENT_ID || redirect) return;
     let alive = true;
     loadGis()
       .then(() => {
@@ -104,6 +106,26 @@ export function GoogleButton({ onBefore, width = 300 }: { onBefore?: () => void;
     };
   }, [t.lang, width]);
 
+  // Phones / home-screen app: full-page redirect to Google and back (no pop-up window)
+  if (redirect) {
+    return (
+      <View style={{ alignSelf: 'stretch', gap: 6 }}>
+        <Button
+          label={t('login_google')}
+          icon="log-in"
+          onPress={() => {
+            onBefore?.();
+            startGoogleRedirect(useApp.getState().pendingPath);
+          }}
+        />
+        {!!auth.error && (
+          <T size={12} color={colors.warn} style={{ textAlign: 'center' }}>
+            {auth.error}
+          </T>
+        )}
+      </View>
+    );
+  }
   // Native builds or Google script blocked: fall back to the Firebase flow
   if (Platform.OS !== 'web' || !CLIENT_ID || failed) {
     return <Button label={t('login_google')} icon="log-in" onPress={() => (onBefore?.(), auth.signInWithGoogle())} />;

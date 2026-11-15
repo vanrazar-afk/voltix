@@ -271,6 +271,7 @@ const D = {
   lg_err_insufficient_cash: ['אין מספיק מזומן לקנייה הזו.', 'Not enough cash for this buy.'],
   lg_err_insufficient_shares: ['אין לך מספיק מניות למכירה.', 'You don’t hold that many shares.'],
   lg_err_permission_denied: ['הפעולה נדחתה — אפשר לסחור רק בשעות המסחר ועד 4 פעולות ביום.', 'Rejected — trading is allowed only in market hours, up to 4 actions a day.'],
+  login_failed: ['הכניסה עם Google נכשלה', 'Google sign-in failed'],
   login_email: ['כניסה עם מייל', 'Sign in with email'],
   login_email_sub: ['כניסה או הרשמה עם כתובת מייל וסיסמה', 'Sign in or sign up with email and password'],
   em_title_in: ['כניסה עם מייל', 'Sign in with email'],

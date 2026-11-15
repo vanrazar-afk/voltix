@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 import { Platform } from 'react-native';
 import Constants from 'expo-constants';
+import { router } from 'expo-router';
 import { initializeApp, getApps, type FirebaseApp } from 'firebase/app';
 import {
   getAuth,
@@ -60,6 +61,74 @@ function setFromUser(user: User) {
   });
 }
 
+// ---- Google sign-in by full-page redirect (phones / home-screen app: no pop-up windows involved) ----
+const GOOGLE_CLIENT_ID = (Constants.expoConfig?.extra as { googleWebClientId?: string } | undefined)?.googleWebClientId ?? '';
+const OAUTH_KEY = 'voltix-oauth';
+
+function appBaseUrl() {
+  const base = ((Constants.expoConfig?.experiments as { baseUrl?: string } | undefined)?.baseUrl ?? '').replace(/\/$/, '');
+  return `${window.location.origin}${base}/`;
+}
+
+function rnd() {
+  const a = new Uint8Array(16);
+  crypto.getRandomValues(a);
+  return [...a].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+/** Phones, tablets and installed (home-screen) web apps get the redirect flow; desktops use Google's button. */
+export function preferGoogleRedirect() {
+  if (Platform.OS !== 'web' || typeof window === 'undefined' || !GOOGLE_CLIENT_ID) return false;
+  const touch = window.matchMedia?.('(pointer: coarse)').matches;
+  return isStandalone() || !!touch || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+
+/** Leave the app for Google's account chooser; Google sends us back to the app with an ID token. */
+export function startGoogleRedirect(returnPath?: string | null) {
+  const state = rnd();
+  const nonce = rnd();
+  try {
+    localStorage.setItem(OAUTH_KEY, JSON.stringify({ state, nonce, returnPath: returnPath ?? null, at: Date.now() }));
+  } catch {
+    /* private mode — the state check below will fail and we show an error */
+  }
+  const q = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    redirect_uri: appBaseUrl(),
+    response_type: 'id_token',
+    scope: 'openid email profile',
+    nonce,
+    state,
+    prompt: 'select_account',
+  });
+  window.location.assign(`https://accounts.google.com/o/oauth2/v2/auth?${q}`);
+}
+
+/** If we just came back from Google: take the ID token from the URL (#id_token=…), verify state + nonce. */
+function takeRedirectToken(): { idToken: string; returnPath: string | null } | { error: string } | null {
+  if (Platform.OS !== 'web' || typeof window === 'undefined') return null;
+  const h = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+  if (!h.get('id_token') && !h.get('error')) return null;
+  window.history.replaceState(null, '', window.location.pathname + window.location.search); // remove the token from the address bar
+  if (h.get('error')) return { error: `google: ${h.get('error')}` };
+  let saved: { state: string; nonce: string; returnPath: string | null; at: number } | null = null;
+  try {
+    saved = JSON.parse(localStorage.getItem(OAUTH_KEY) ?? 'null');
+    localStorage.removeItem(OAUTH_KEY);
+  } catch {
+    /* ignore */
+  }
+  const idToken = h.get('id_token')!;
+  let nonce = '';
+  try {
+    nonce = JSON.parse(atob(idToken.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).nonce ?? '';
+  } catch {
+    /* ignore */
+  }
+  if (!saved || saved.state !== h.get('state') || saved.nonce !== nonce || Date.now() - saved.at > 15 * 60e3) return { error: 'auth/state-mismatch' };
+  return { idToken, returnPath: saved.returnPath };
+}
+
 const isStandalone = () => {
   try {
     return typeof window !== 'undefined' && (window.matchMedia?.('(display-mode: standalone)').matches || (navigator as any).standalone === true);
@@ -103,6 +172,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!auth) return;
     getRedirectResult(auth).catch((e) => setError(String(e?.code ?? e)));
+    // Returning from the full-page Google sign-in?
+    const back = takeRedirectToken();
+    if (back && 'error' in back) setError(back.error);
+    else if (back) {
+      setBusy(true);
+      signInWithCredential(auth, GoogleAuthProvider.credential(back.idToken))
+        .then((cred) => {
+          setFromUser(cred.user);
+          const next = back.returnPath;
+          if (next && next !== '/' && !next.startsWith('/onboarding')) {
+            useApp.getState().setPendingPath(null);
+            setTimeout(() => router.replace(next as never), 300);
+          }
+        })
+        .catch((e) => setError(String(e?.code ?? e)))
+        .finally(() => setBusy(false));
+    }
     return onAuthStateChanged(auth, async (user) => {
       if (!user) {
         uidRef.current = null;
