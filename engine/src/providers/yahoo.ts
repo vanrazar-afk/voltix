@@ -4,7 +4,7 @@
  * News (with publisher): /v1/finance/search
  * Unofficial endpoints — fine for personal use/testing; use a licensed feed for a commercial launch.
  */
-import type { Candle, ChartSet, Fundamentals, NewsItem, Series, StockInput } from '../types.js';
+import type { Bar, Candle, ChartSet, Fundamentals, NewsItem, Series, StockInput } from '../types.js';
 
 export type GetJSON = (path: string) => Promise<any>;
 
@@ -56,11 +56,24 @@ function toSeries(json: any): Series {
 
 /** Intraday (5 sessions, 15m) + 5-year weekly series for the price-range chart. */
 export async function loadYahooCharts(get: GetJSON, symbol: string): Promise<ChartSet> {
-  const [intra, weekly] = await Promise.all([
-    get(`/v8/finance/chart/${symbol}?range=5d&interval=15m`).then(toSeries).catch(() => [] as Series),
+  const [intraJson, weekly] = await Promise.all([
+    get(`/v8/finance/chart/${symbol}?range=5d&interval=15m`).catch(() => null),
     get(`/v8/finance/chart/${symbol}?range=5y&interval=1wk`).then(toSeries).catch(() => [] as Series),
   ]);
-  return { intraday: intra, weekly };
+  return { intraday: toSeries(intraJson), weekly, bars: toBars(intraJson) };
+}
+
+/** OHLCV bars (for the day-trading plan: VWAP, today's open/high/low). */
+function toBars(json: any): Bar[] {
+  const r = json?.chart?.result?.[0];
+  const ts: number[] = r?.timestamp ?? [];
+  const q = r?.indicators?.quote?.[0] ?? {};
+  const out: Bar[] = [];
+  ts.forEach((t, i) => {
+    const o = q.open?.[i], h = q.high?.[i], l = q.low?.[i], c = q.close?.[i], v = q.volume?.[i];
+    if ([o, h, l, c].every((x) => typeof x === 'number' && Number.isFinite(x))) out.push({ t, o, h, l, c, v: typeof v === 'number' ? v : 0 });
+  });
+  return out;
 }
 
 export async function loadYahooStock(

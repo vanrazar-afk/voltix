@@ -1,3 +1,4 @@
+import { buildDayPlan } from './scoring/daytrade.js';
 import type { DailyReport, RankEntry, StockInput, StockScore } from './types.js';
 import { scoreTechnical } from './scoring/technical.js';
 import { scoreFundamental, type SectorContext } from './scoring/fundamental.js';
@@ -69,6 +70,13 @@ export async function scoreStock(
     flags,
     analystTarget: s.fundamentals.analystTarget,
     nextEarningsDate: e,
+    dayPlan: (() => {
+      try {
+        return buildDayPlan(s.candles, s.charts?.bars, new Date(), e);
+      } catch {
+        return null;
+      }
+    })(),
   };
 }
 

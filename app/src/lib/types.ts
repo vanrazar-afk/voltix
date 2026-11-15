@@ -42,9 +42,20 @@ export interface CompanyProfile {
 
 /** Price history for the range chart: [unix seconds, price] pairs. */
 export type Series = [number, number][];
+/** 15-minute intraday bar (t = unix seconds). */
+export interface Bar {
+  t: number;
+  o: number;
+  h: number;
+  l: number;
+  c: number;
+  v: number;
+}
+
 export interface ChartSet {
   intraday: Series; // last ~5 sessions, 15-minute bars (→ 1D and 5D ranges)
   weekly: Series; // ~5 years, weekly closes (→ 5Y range)
+  bars?: Bar[]; // the same intraday period with OHLCV (for the day-trading plan; not written to chart files)
 }
 
 export interface StockInput {
@@ -121,6 +132,28 @@ export interface StockScore {
   flags: string[]; // e.g. "earnings_soon", "low_news_coverage"
   analystTarget: number | null;
   nextEarningsDate: string | null;
+  dayPlan?: DayPlan | null; // intraday (same-day) trading plan
+}
+
+/** Same-day trading plan: entry, stop, targets and the reasoning (long side only, educational). */
+export interface DayPlan {
+  session: 'live' | 'next'; // live = for today's session (market open); next = for the next session
+  asOf: string; // ISO time of the data used
+  bias: 'bullish' | 'neutral' | 'bearish';
+  setup: 'pullback' | 'retest' | 'breakout' | 'range' | 'reclaim' | 'none';
+  entryType: 'limit' | 'stop'; // limit = buy at or below; stop = buy only once price trades at/above
+  entry: number;
+  stop: number;
+  target1: number;
+  target2: number;
+  rr: number; // reward:risk to target1
+  atr: number; // daily ATR(14)
+  atrPct: number;
+  levels: { pivot: number; r1: number; r2: number; s1: number; s2: number; prevHigh: number; prevLow: number; prevClose: number; vwap?: number; open?: number; dayHigh?: number; dayLow?: number };
+  last: number;
+  gapPct?: number;
+  warnings: ('low_vol' | 'earnings' | 'big_gap' | 'extended')[];
+  text: { he: { bias: string; entry: string; exit: string }; en: { bias: string; entry: string; exit: string } };
 }
 
 /** A hot market story for the home-screen news carousel. */

@@ -13,6 +13,7 @@ import { fmtDate, pct, timeAgo, usd } from '@/lib/format';
 import { T, N, Row, Card, Delta, Button, SectionTitle, Disclaimer, DemoBanner } from '@/components/ui';
 import { ScoreRing, PillarBar, LevelsChart } from '@/components/charts';
 import { PriceChart } from '@/components/PriceChart';
+import { DayPlanCard } from '@/components/DayPlanCard';
 
 const SOURCE_NAMES: Record<string, string> = {
   reuters: 'Reuters', bloomberg: 'Bloomberg', wsj: 'WSJ', ft: 'Financial Times', cnbc: 'CNBC',
@@ -133,6 +134,7 @@ export default function StockScreen() {
         </Card>
 
         <PriceChart symbol={s.symbol} />
+        <DayPlanCard plan={s.dayPlan} />
 
         {/* Levels */}
         <Card>
