@@ -1,6 +1,6 @@
 import type { Factor, Fundamentals, PillarResult } from '../types.js';
 import { clamp, round } from '../indicators.js';
-import { PILLAR_MAX } from './technical.js';
+import { FUND_MAX } from './technical.js';
 
 export interface SectorContext {
   pe: number | null; // sector median trailing P/E (positive earners only)
@@ -130,18 +130,29 @@ export function scoreFundamental(f: Fundamentals, sector: SectorContext, sectorN
     factors.push({ key: 'roe', label: 'תשואה על ההון (ROE)', value: pct(r), points: pts, max: 5, signal: sig(pts, 5) });
   }
 
+  // Re-weight to round professional weights (total 30):
+  // valuation 10 (P/E vs sector 6, PEG 4) · growth 10 (revenue 5, EPS 5) · quality 10 (margin 3, ROE 3, FCF 2, debt 2)
+  const W: Record<string, number> = { pe: 6, peg: 4, rev: 5, eps: 5, margin: 3, roe: 3, fcf: 2, de: 2 };
+  for (const x of factors) {
+    const w = W[x.key];
+    if (w === undefined || !x.max) continue;
+    x.points = Math.round((x.points / x.max) * w * 2) / 2;
+    x.max = w;
+    x.signal = sig(x.points, w);
+  }
+  factors.sort((a, b) => Object.keys(W).indexOf(a.key) - Object.keys(W).indexOf(b.key));
+
   // Earnings proximity (negative-only factor)
   {
     const days = daysToEarnings(f.nextEarningsDate, asOf);
     const before = factors.reduce((a, x) => a + x.points, 0);
     const cut = Math.round(before * earningsCut(days) * 10) / 10;
     const when = days === null ? 'לא ידוע / רחוק' : days === 0 ? 'היום' : days === 1 ? 'מחר' : `בעוד ${days} ימים`;
-    factors.push({ key: 'earnings', label: 'קרבה לדוח רבעוני (סיכון)', value: when, points: -cut, max: 0, signal: cut >= 15 ? 'negative' : cut > 0 ? 'neutral' : 'positive' });
+    factors.push({ key: 'earnings', label: 'קרבה לדוח רבעוני (סיכון)', value: when, points: -cut, max: 0, signal: cut >= 4 ? 'negative' : cut > 0 ? 'neutral' : 'positive' });
   }
 
-  const raw = factors.reduce((a, x) => a + x.points, 0);
-  const score = round(clamp(raw, 0, 100) * (PILLAR_MAX / 100), 2);
-  return { score, factors, summary: fundamentalSummary(factors, raw, sectorName) };
+  const score = round(clamp(factors.reduce((a, x) => a + x.points, 0), 0, FUND_MAX), 1);
+  return { score, factors, summary: fundamentalSummary(factors, score, sectorName) };
 }
 
 function sig(pts: number, max: number): Factor['signal'] {
@@ -163,21 +174,19 @@ export const SECTOR_HE: Record<string, string> = {
   Utilities: 'התשתיות',
 };
 
-function fundamentalSummary(f: Factor[], raw: number, sectorEn: string): string {
-  const sector = SECTOR_HE[sectorEn] ?? sectorEn;
-  const g = (k: string) => f.find((x) => x.key === k)!;
-  const s: string[] = [];
-  const pe = g('pe');
-  if (pe.value === 'הפסדית') s.push('החברה אינה רווחית כרגע, ולכן מכפיל הרווח אינו רלוונטי.');
-  else if (pe.points >= 20) s.push(`התמחור אטרקטיבי ביחס לענף ${sector}: מכפיל ${pe.value}.`);
-  else if (pe.points <= 7) s.push(`התמחור גבוה ביחס לענף ${sector}: מכפיל ${pe.value}.`);
-  else s.push(`התמחור דומה לממוצע בענף ${sector}.`);
-  if (g('rev').points >= 11) s.push(`ההכנסות צומחות בקצב של ${g('rev').value}, מעל הענף.`);
-  else if (g('rev').points === 0) s.push('ההכנסות מתכווצות.');
-  if (g('de').points <= 3) s.push('רמת המינוף גבוהה יחסית.');
-  if (g('fcf').points >= 7) s.push('החברה מייצרת תזרים מזומנים חופשי בריא.');
-  const ern = g('earnings');
-  if (ern && ern.points < 0) s.push(`הדוח הרבעוני צפוי ${ern.value} — הציון הופחת ב-${-ern.points} נק' בגלל סיכון האירוע.`);
-  s.push(raw >= 65 ? 'פרופיל פונדמנטלי חזק.' : raw >= 40 ? 'פרופיל פונדמנטלי סביר.' : 'פרופיל פונדמנטלי חלש.');
-  return s.join(' ');
+function fundamentalSummary(f: Factor[], score: number, _sectorEn: string): string {
+  const g = (k: string) => f.find((x) => x.key === k);
+  const part = (keys: string[]) => {
+    const got = keys.map(g).filter(Boolean) as Factor[];
+    const max = got.reduce((a, x) => a + x.max, 0) || 1;
+    return got.reduce((a, x) => a + x.points, 0) / max;
+  };
+  const v = part(['pe', 'peg']);
+  const gr = part(['rev', 'eps']);
+  const q = part(['margin', 'roe', 'fcf', 'de']);
+  const word = (r: number, hi: string, mid: string, lo: string) => (r >= 0.65 ? hi : r >= 0.35 ? mid : lo);
+  const s = [word(v, 'תמחור אטרקטיבי', 'תמחור הוגן', 'תמחור יקר'), word(gr, 'צמיחה חזקה', 'צמיחה מתונה', 'צמיחה חלשה'), word(q, 'עסק איכותי', 'איכות בינונית', 'איכות נמוכה')];
+  const e = g('earnings');
+  if (e && e.points < 0) s.push(`דוח ${e.value}`);
+  return s.join(' · ');
 }

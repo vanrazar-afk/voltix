@@ -27,7 +27,7 @@ export function StockRow({ s }: { s: StockScore }) {
   return (
     <Pressable
       onPress={() => router.push({ pathname: '/stock/[symbol]', params: { symbol: s.symbol } })}
-      style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.cardHi }]}
+      style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.cardHi, transform: [{ scale: 0.985 }] }]}
       accessibilityRole="button"
       accessibilityLabel={`${s.name}, #${s.rank}, ${s.score}`}
     >
@@ -83,7 +83,7 @@ export function UnscoredRow({ symbol, name, sector, price, changePct }: { symbol
   return (
     <Pressable
       onPress={() => router.push({ pathname: '/stock/[symbol]', params: { symbol } })}
-      style={({ pressed }) => [styles.row, { paddingVertical: 10 }, pressed && { backgroundColor: colors.cardHi }]}
+      style={({ pressed }) => [styles.row, { paddingVertical: 10 }, pressed && { backgroundColor: colors.cardHi, transform: [{ scale: 0.985 }] }]}
       accessibilityRole="button"
       accessibilityLabel={`${name}, ${t('no_score')}, ${usd(price)}`}
     >
@@ -117,7 +117,7 @@ export function RankedRow({ r, name, sector, price, changePct }: { r: RankEntry;
   return (
     <Pressable
       onPress={() => router.push({ pathname: '/stock/[symbol]', params: { symbol: r.symbol } })}
-      style={({ pressed }) => [styles.row, { paddingVertical: 10 }, pressed && { backgroundColor: colors.cardHi }]}
+      style={({ pressed }) => [styles.row, { paddingVertical: 10 }, pressed && { backgroundColor: colors.cardHi, transform: [{ scale: 0.985 }] }]}
       accessibilityRole="button"
       accessibilityLabel={`${name}, #${r.rank}, ${r.score}, ${usd(price)}`}
     >

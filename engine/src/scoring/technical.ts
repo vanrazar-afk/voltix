@@ -1,184 +1,123 @@
 import type { Candle, Factor, PillarResult } from '../types.js';
-import { sma, rsi, macd, redStreakBeforeLast, last, clamp, round } from '../indicators.js';
+import { sma, rsi, macd, atr, last, clamp, round } from '../indicators.js';
 
-export const PILLAR_MAX = 100 / 3;
+/** Score weights (total 100): technical 50 · fundamental 30 · sentiment 20. */
+export const TECH_MAX = 50;
+export const FUND_MAX = 30;
+export const SENT_MAX = 20;
 
 /**
- * Technical pillar (max 33.33 points).
- * Raw points out of 100, then scaled to a third of the total score.
+ * Technical pillar (max 50) — read the way a swing trader reads a chart:
  *
- *  1. Long-term trend: price above SMA200                       15
- *  2. Trend structure: SMA50 above SMA200 (golden alignment)     10
- *  3. Pullback to SMA100: price approaching SMA100 from above    20
- *  4. Reversal candles: >=2 red days followed by a green day     20
- *  5. RSI(14) in a healthy zone / recovering from oversold        15
- *  6. MACD histogram turning up                                   10
- *  7. Volume confirmation on the last day                         10
+ *  TREND (18)        price > SMA200 6 · SMA50 > SMA200 4 · SMA200 rising 3 · price > SMA50 5
+ *  STRENGTH (10)     6-month relative strength vs the S&P 500 universe 6 · MACD histogram positive & rising 4
+ *  ENTRY TIMING (16) distance from SMA20 in ATRs 8 (near the mean = good entry; stretched = poor)
+ *                    RSI(14) zone 5 (40–60 best, >70 overbought = 0)
+ *                    up/down streak 3 (pullback-then-reversal = 3; 3+ straight up days = chasing = 0)
+ *  ACCUMULATION (6)  20-day up-volume / down-volume ratio
+ *
+ * A stock that has simply risen several days in a row scores LOW on timing (stretched, high RSI, chasing),
+ * even if its trend is strong — buying after a run is how traders get caught at the top.
  */
-export function scoreTechnical(candles: Candle[]): PillarResult {
+export function scoreTechnical(candles: Candle[], ctx: { rsPct?: number | null } = {}): PillarResult {
   const closes = candles.map((c) => c.close);
   const price = last(closes);
+  const s20 = last(sma(closes, 20));
   const s50 = last(sma(closes, 50));
-  const s100 = last(sma(closes, 100));
-  const s200 = last(sma(closes, 200));
+  const s200Arr = sma(closes, 200);
+  const s200 = last(s200Arr);
+  const s200Ago = s200Arr[s200Arr.length - 21] ?? null;
   const r = rsi(closes, 14);
   const rNow = last(r);
   const rMin5 = Math.min(...(r.slice(-6, -1).filter((x) => x !== null) as number[]));
   const { hist } = macd(closes);
   const hNow = last(hist);
   const hPrev = hist[hist.length - 2];
-  const vol20 = sma(candles.map((c) => c.volume), 20);
-  const avgVol = vol20[vol20.length - 2];
-  const lastVol = last(candles).volume;
-  const { lastGreen, redStreak } = redStreakBeforeLast(candles);
+  const A = atr(candles, 14);
 
-  const factors: Factor[] = [];
+  // streaks (last day included)
+  let up = 0;
+  for (let i = closes.length - 1; i > 0 && closes[i] > closes[i - 1]; i--) up++;
+  let downBefore = 0;
+  if (up >= 1) for (let i = closes.length - 1 - up; i > 0 && closes[i] < closes[i - 1]; i--) downBefore++;
 
-  // 1. above SMA200
-  {
-    const ok = s200 !== null && price > s200;
-    const dist = s200 ? (price / s200 - 1) * 100 : 0;
-    factors.push({
-      key: 'sma200',
-      label: 'מחיר מעל ממוצע 200',
-      value: s200 ? `${round(dist, 1)}%` : 'אין נתון',
-      points: ok ? 15 : 0,
-      max: 15,
-      signal: ok ? 'positive' : 'negative',
-    });
+  // 20-day up-volume vs down-volume
+  let upV = 0;
+  let dnV = 0;
+  for (let i = Math.max(1, candles.length - 20); i < candles.length; i++) {
+    if (candles[i].close > candles[i - 1].close) upV += candles[i].volume;
+    else if (candles[i].close < candles[i - 1].close) dnV += candles[i].volume;
   }
+  const udRatio = dnV > 0 ? upV / dnV : upV > 0 ? 2 : 1;
 
-  // 2. SMA50 > SMA200
-  {
-    const ok = s50 !== null && s200 !== null && s50 > s200;
-    factors.push({
-      key: 'golden',
-      label: 'ממוצע 50 מעל ממוצע 200',
-      value: ok ? 'כן' : 'לא',
-      points: ok ? 10 : 0,
-      max: 10,
-      signal: ok ? 'positive' : 'negative',
-    });
+  const f: Factor[] = [];
+  const push = (key: string, label: string, value: string, points: number, max: number) =>
+    f.push({ key, label, value, points: round(points, 1), max, signal: points >= max * 0.6 ? 'positive' : points > 0 ? 'neutral' : 'negative' });
+
+  // ---- Trend (18) ----
+  const above200 = s200 !== null && price > s200;
+  push('sma200', 'מחיר מעל ממוצע 200', s200 ? `${round((price / s200 - 1) * 100, 1)}%` : '—', above200 ? 6 : 0, 6);
+  const golden = s50 !== null && s200 !== null && s50 > s200;
+  push('golden', 'ממוצע 50 מעל ממוצע 200', golden ? 'כן' : 'לא', golden ? 4 : 0, 4);
+  const rising = s200 !== null && s200Ago !== null && s200 > s200Ago;
+  push('slope200', 'ממוצע 200 במגמת עלייה', rising ? 'עולה' : 'יורד', rising ? 3 : 0, 3);
+  const above50 = s50 !== null && price > s50;
+  push('sma50', 'מחיר מעל ממוצע 50', s50 ? `${round((price / s50 - 1) * 100, 1)}%` : '—', above50 ? 5 : 0, 5);
+  const uptrend = above200 && golden; // long-term uptrend (a dip under SMA50 inside it is a classic buy zone)
+
+  // ---- Strength (10) ----
+  const rs = ctx.rsPct ?? null;
+  push('rs', 'חוזק יחסי (6 חודשים) מול S&P 500', rs !== null ? `${Math.round(rs)}` : '—', rs !== null ? (rs / 100) * 6 : 3, 6);
+  let macdPts = 0;
+  let macdV = '—';
+  if (hNow !== null && hPrev !== null) {
+    if (hNow > 0 && hNow > hPrev) (macdPts = 4), (macdV = 'חיובי ומתחזק');
+    else if (hPrev <= 0 && hNow > 0) (macdPts = 4), (macdV = 'חצייה כלפי מעלה');
+    else if (hNow > hPrev) (macdPts = 2), (macdV = 'משתפר');
+    else macdV = 'נחלש';
   }
+  push('macd', 'MACD', macdV, macdPts, 4);
 
-  // 3. Approaching SMA100 from above: best when 0%–3% above, partial up to 6%, small if just under (testing support)
-  {
-    let pts = 0;
-    let sig: Factor['signal'] = 'neutral';
-    const d = s100 ? (price / s100 - 1) * 100 : NaN;
-    if (Number.isFinite(d)) {
-      if (d >= 0 && d <= 3) pts = 20;
-      else if (d > 3 && d <= 6) pts = 12;
-      else if (d < 0 && d >= -2) pts = 8; // testing support from below
-      else if (d > 6 && d <= 12) pts = 5;
-      sig = pts >= 12 ? 'positive' : pts === 0 ? 'negative' : 'neutral';
-    }
-    factors.push({
-      key: 'sma100',
-      label: 'מרחק מממוצע 100',
-      value: Number.isFinite(d) ? `${d >= 0 ? '+' : ''}${round(d, 1)}%` : 'אין נתון',
-      points: pts,
-      max: 20,
-      signal: sig,
-    });
+  // ---- Entry timing (16) ----
+  const ext = s20 !== null && A > 0 ? (price - s20) / A : 0; // how many "normal daily moves" above the 20-day mean
+  let extPts = 0;
+  if (ext >= -1 && ext <= 1) extPts = uptrend ? 8 : 4;
+  else if (ext > 1 && ext <= 2) extPts = 5;
+  else if (ext > 2 && ext <= 3) extPts = 2;
+  else if (ext < -1) extPts = uptrend ? 3 : 0;
+  push('extension', 'מרחק מממוצע 20 (ביחידות ATR)', `${ext >= 0 ? '+' : ''}${round(ext, 1)}`, extPts, 8);
+
+  let rsiPts = 0;
+  let rsiNote = '—';
+  if (rNow !== null) {
+    if (rNow > 70) (rsiPts = 0), (rsiNote = 'קניית יתר');
+    else if (rNow > 60) (rsiPts = 3), (rsiNote = 'חזק');
+    else if (rNow >= 40) (rsiPts = 5), (rsiNote = 'מאוזן');
+    else if (rMin5 < 32 && rNow > rMin5 + 4) (rsiPts = uptrend ? 5 : 2), (rsiNote = 'יוצא ממכירת יתר');
+    else (rsiPts = 1), (rsiNote = 'חלש');
   }
+  push('rsi', 'RSI(14)', rNow !== null ? `${round(rNow, 0)} · ${rsiNote}` : '—', rsiPts, 5);
 
-  // 4. Red streak then green day
-  {
-    let pts = 0;
-    if (lastGreen && redStreak >= 3) pts = 20;
-    else if (lastGreen && redStreak === 2) pts = 14;
-    else if (lastGreen && redStreak === 1) pts = 6;
-    factors.push({
-      key: 'candles',
-      label: 'נרות אדומים לפני יום ירוק אחרון',
-      value: lastGreen ? `${redStreak} אדומים ← ירוק` : 'היום האחרון אינו ירוק',
-      points: pts,
-      max: 20,
-      signal: pts >= 14 ? 'positive' : pts > 0 ? 'neutral' : 'negative',
-    });
-  }
+  let streakPts = 1;
+  let streakV = 'ללא רצף';
+  if (up >= 3) (streakPts = 0), (streakV = `${up} ימי עלייה ברצף — מרדף`);
+  else if (up >= 1 && downBefore >= 2) (streakPts = uptrend ? 3 : 1.5), (streakV = `${downBefore} ימי ירידה ← היפוך`);
+  else if (up === 0) (streakPts = 1), (streakV = 'יום אחרון אדום');
+  push('streak', 'רצף ימים', streakV, streakPts, 3);
 
-  // 5. RSI
-  {
-    let pts = 0;
-    let note = '';
-    if (rNow !== null) {
-      if (rMin5 < 35 && rNow > rMin5 + 5 && rNow < 60) {
-        pts = 15;
-        note = 'יציאה ממכירת יתר';
-      } else if (rNow >= 40 && rNow <= 60) {
-        pts = 11;
-        note = 'אזור מאוזן';
-      } else if (rNow > 60 && rNow <= 70) {
-        pts = 6;
-        note = 'מומנטום חזק';
-      } else if (rNow > 70) {
-        pts = 0;
-        note = 'קניית יתר';
-      } else {
-        pts = 4;
-        note = 'חלש';
-      }
-    }
-    factors.push({
-      key: 'rsi',
-      label: 'RSI(14)',
-      value: rNow !== null ? `${round(rNow, 0)} · ${note}` : 'אין נתון',
-      points: pts,
-      max: 15,
-      signal: pts >= 11 ? 'positive' : pts >= 4 ? 'neutral' : 'negative',
-    });
-  }
+  // ---- Accumulation (6) ----
+  const volPts = udRatio >= 1.3 ? 6 : udRatio >= 1.0 ? 4 : udRatio >= 0.8 ? 2 : 0;
+  push('volume', 'מחזור בימי עלייה מול ירידה (20 יום)', `x${round(udRatio, 2)}`, volPts, 6);
 
-  // 6. MACD histogram turning up
-  {
-    let pts = 0;
-    let v = 'אין נתון';
-    if (hNow !== null && hPrev !== null) {
-      if (hPrev <= 0 && hNow > 0) {
-        pts = 10;
-        v = 'חצייה כלפי מעלה';
-      } else if (hNow > hPrev) {
-        pts = 6;
-        v = 'משתפר';
-      } else {
-        v = 'נחלש';
-      }
-    }
-    factors.push({ key: 'macd', label: 'MACD', value: v, points: pts, max: 10, signal: pts >= 6 ? 'positive' : 'negative' });
-  }
-
-  // 7. Volume
-  {
-    const ratio = avgVol ? lastVol / avgVol : 0;
-    let pts = 0;
-    if (lastGreen && ratio >= 1.3) pts = 10;
-    else if (lastGreen && ratio >= 1.0) pts = 6;
-    else if (ratio >= 1.0) pts = 2;
-    factors.push({
-      key: 'volume',
-      label: 'מחזור יומי מול ממוצע 20',
-      value: avgVol ? `x${round(ratio, 2)}` : 'אין נתון',
-      points: pts,
-      max: 10,
-      signal: pts >= 6 ? 'positive' : pts > 0 ? 'neutral' : 'negative',
-    });
-  }
-
-  const raw = factors.reduce((a, f) => a + f.points, 0);
-  const score = round(clamp(raw, 0, 100) * (PILLAR_MAX / 100), 2);
-  return { score, factors, summary: technicalSummary(factors, raw) };
+  const score = round(clamp(f.reduce((a, x) => a + x.points, 0), 0, TECH_MAX), 1);
+  return { score, factors: f, summary: technicalSummary(f, score) };
 }
 
-function technicalSummary(f: Factor[], raw: number): string {
-  const get = (k: string) => f.find((x) => x.key === k)!;
-  const parts: string[] = [];
-  const trendUp = get('sma200').points > 0 && get('golden').points > 0;
-  parts.push(trendUp ? 'המניה במגמה עולה ארוכת טווח (מעל ממוצע 200, וממוצע 50 מעליו).' : get('sma200').points > 0 ? 'המחיר מעל ממוצע 200, אך מבנה הממוצעים עדיין לא אישר מגמה עולה מלאה.' : 'המחיר מתחת לממוצע 200 — המגמה ארוכת הטווח חלשה.');
-  if (get('sma100').points >= 12) parts.push(`המחיר מתקרב לממוצע 100 (${get('sma100').value}), אזור שמשמש לעיתים קרובות כתמיכה.`);
-  if (get('candles').points >= 14) parts.push(`נרשם דפוס היפוך אפשרי: ${get('candles').value}.`);
-  if (get('rsi').points === 0) parts.push('RSI מעיד על קניית יתר — סיכון לתיקון.');
-  parts.push(raw >= 70 ? 'תמונה טכנית חיובית.' : raw >= 45 ? 'תמונה טכנית מעורבת.' : 'תמונה טכנית חלשה.');
-  return parts.join(' ');
+function technicalSummary(f: Factor[], score: number): string {
+  const g = (k: string) => f.find((x) => x.key === k)!;
+  const trend = g('sma200').points + g('golden').points + g('slope200').points + g('sma50').points;
+  const timing = g('extension').points + g('rsi').points + g('streak').points;
+  const a = trend >= 15 ? 'מגמה עולה' : trend >= 8 ? 'מגמה מעורבת' : 'מגמה יורדת';
+  const b = timing >= 12 ? 'נקודת כניסה טובה' : timing >= 7 ? 'כניסה סבירה' : 'מתוחה — עדיף לחכות לתיקון';
+  return `${a} · ${b}${score >= 35 ? ' · תמונה טכנית חזקה' : score < 20 ? ' · תמונה טכנית חלשה' : ''}`;
 }

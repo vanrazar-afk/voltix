@@ -133,8 +133,8 @@ const D = {
   ob_tagline: ['ניתוח מניות חכם — טכני, פונדמנטלי וסנטימנט, בציון אחד.', 'Smart stock analysis — technical, fundamental and sentiment in one score.'],
   ob_p1_t: ['דירוג חי של כל 500 המניות', 'A live ranking of all 500 stocks'],
   ob_p1_b: ['מודל כמותי מדרג את מניות S&P 500 לפי ציון 1–100, ומתעדכן כל 5 דקות בזמן המסחר.', 'A quantitative model scores every S&P 500 stock 1–100, refreshed every 5 minutes during trading.'],
-  ob_p2_t: ['שלושה שלישים לציון', 'Three equal thirds'],
-  ob_p2_b: ['ניתוח טכני, ניתוח פונדמנטלי מול הענף, וסנטימנט מאתרי החדשות הפיננסיים הגדולים.', 'Technical analysis, fundamentals vs. the sector, and sentiment from major financial news outlets.'],
+  ob_p2_t: ['ציון אחד, שלושה חלקים', 'One score, three parts'],
+  ob_p2_b: ['טכני 50 · פונדמנטלי 30 · סנטימנט 20 — כמו שסוחר מקצוען מסתכל על מניה.', 'Technical 50 · Fundamental 30 · Sentiment 20 — the way a pro trader looks at a stock.'],
   ob_p3_t: ['התיק שלך', 'Your portfolio'],
   ob_p3_b: ['עקבו אחרי העסקאות שלכם — הנתונים נשמרים במכשיר בלבד.', 'Track your trades — data stays on your device.'],
   ob_important: ['חשוב לדעת', 'Important'],
@@ -303,6 +303,10 @@ const D = {
   em_err_many: ['יותר מדי ניסיונות — נסו שוב בעוד כמה דקות.', 'Too many attempts — try again in a few minutes.'],
   em_err_disabled: ['הכניסה עם מייל עדיין לא הופעלה.', 'Email sign-in is not enabled yet.'],
   em_err_generic: ['משהו השתבש — נסו שוב.', 'Something went wrong — try again.'],
+  tab_s_overview: ['סקירה', 'Overview'],
+  tab_s_day: ['מסחר יומי', 'Day trade'],
+  tab_s_analysis: ['ניתוח', 'Analysis'],
+  tab_s_news: ['חדשות', 'News'],
   dp_title: ['תוכנית למסחר יומי', 'Day-trading plan'],
   dp_live: ['להיום · חי', 'Today · live'],
   dp_next: ['למסחר הבא', 'Next session'],
@@ -332,7 +336,8 @@ const D = {
   dp_why_entry: ['איפה נכנסים ולמה', 'Where to enter and why'],
   dp_why_exit: ['איך יוצאים ולמה', 'How to exit and why'],
   dp_levels: ['רמות חשובות', 'Key levels'],
-  dp_more: ['כל הרמות, גודל עסקה וכללים', 'All levels, position size and rules'],
+  dp_more: ['רמות וכללים', 'Levels & rules'],
+  dp_why: ['למה?', 'Why?'],
   dp_less: ['פחות', 'Less'],
   dp_levels_title: ['רמות המסחר להיום', 'Today’s levels'],
   dp_pivot: ['נקודת ציר', 'Pivot'],
@@ -343,7 +348,7 @@ const D = {
   dp_rules_title: ['כללי מסחר יומי', 'Day-trading rules'],
   dp_rules: ['לא נכנסים ב-15 הדקות הראשונות (התנודות פרועות). אחרי יעד 1 מזיזים את הסטופ למחיר הכניסה. לא מזיזים סטופ למטה. סוגרים הכול עד 15:50 שעון ניו יורק (בדרך כלל 22:50 בישראל).', 'Skip the first 15 minutes (wild swings). After target 1, move the stop to your entry. Never move a stop lower. Close everything by 15:50 New York time.'],
   dp_method: ['איך מחושב: נקודות ציר קלאסיות מהיום הקודם (גבוה, נמוך, סגירה), VWAP מנרות של 15 דקות, ו-ATR של 14 ימים לגודל הסטופ והיעדים. מתעדכן כל 5 דקות בזמן המסחר.', 'Method: classic floor pivots from the prior session (high, low, close), VWAP from 15-minute bars, and 14-day ATR to size the stop and targets. Refreshed every 5 minutes in session.'],
-  dp_disclaimer: ['תוכנית טכנית אוטומטית למטרות לימוד בלבד — לא המלצה לקנות או למכור. מסחר יומי מסוכן ורוב הסוחרים היומיים מפסידים.', 'An automated technical plan for learning only — not a recommendation to buy or sell. Day trading is risky; most day traders lose money.'],
+  dp_disclaimer: ['ללימוד בלבד, לא המלצה. רוב הסוחרים היומיים מפסידים.', 'For learning only, not advice. Most day traders lose money.'],
   hot_news: ['חם עכשיו', 'Hot right now'],
   hot_news_empty: ['החדשות החמות יופיעו כאן בעדכון הבא.', 'The hottest stories will appear here on the next refresh.'],
   open_article: ['פותח את הכתבה באתר המקור', 'Opens the article on the source site'],
@@ -410,11 +415,14 @@ const FACTOR_LABEL_EN: Record<string, string> = {
   earnings: 'Upcoming quarterly report (risk)',
   sma200: 'Price above 200-day MA',
   golden: '50-day MA above 200-day MA',
-  sma100: 'Distance from 100-day MA',
-  candles: 'Red candles before last green day',
+  slope200: '200-day MA rising',
+  sma50: 'Price above 50-day MA',
+  rs: '6-month relative strength vs S&P 500',
+  extension: 'Distance from 20-day MA (in ATRs)',
+  streak: 'Day streak',
   rsi: 'RSI(14)',
   macd: 'MACD',
-  volume: 'Volume vs. 20-day avg.',
+  volume: 'Up-day vs down-day volume (20 days)',
   pe: 'P/E vs. sector',
   peg: 'PEG (P/E to growth)',
   rev: 'Revenue growth (YoY)',
@@ -430,6 +438,21 @@ const FACTOR_LABEL_EN: Record<string, string> = {
 };
 
 const VALUE_EN: [RegExp, string][] = [
+  [/^עולה$/, 'Rising'],
+  [/^יורד$/, 'Falling'],
+  [/חיובי ומתחזק/, 'positive & rising'],
+  [/חצייה כלפי מעלה/, 'crossed up'],
+  [/משתפר/, 'improving'],
+  [/נחלש/, 'weakening'],
+  [/קניית יתר/, 'overbought'],
+  [/יוצא ממכירת יתר/, 'leaving oversold'],
+  [/מאוזן/, 'balanced'],
+  [/(\d+) ימי עלייה ברצף — מרדף/, '$1 up days in a row — chasing'],
+  [/(\d+) ימי ירידה ← היפוך/, '$1 down days → reversal'],
+  [/יום אחרון אדום/, 'last day red'],
+  [/ללא רצף/, 'no streak'],
+  [/ · חזק$/, ' · strong'],
+  [/ · חלש$/, ' · weak'],
   [/^בעוד (\d+) ימים$/, 'in $1 days'],
   [/^היום$/, 'today'],
   [/^מחר$/, 'tomorrow'],
@@ -473,39 +496,41 @@ export function levelsMethod(m: string, lang: Lang) {
 const fk = (p: PillarResult, k: string) => p.factors.find((f) => f.key === k);
 
 /** English summaries, rebuilt from the factor table (same rules the engine uses in Hebrew). */
-export function pillarSummary(kind: 'technical' | 'fundamental', p: PillarResult, sector: string, lang: Lang) {
-  if (lang === 'he') return p.summary;
-  const raw = p.factors.reduce((a, f) => a + f.points, 0);
-  const s: string[] = [];
-  if (kind === 'technical') {
-    const up = (fk(p, 'sma200')?.points ?? 0) > 0 && (fk(p, 'golden')?.points ?? 0) > 0;
-    s.push(up ? 'Long-term uptrend (above the 200-day MA, with the 50-day above it).' : (fk(p, 'sma200')?.points ?? 0) > 0 ? 'Price is above the 200-day MA, but the averages have not confirmed a full uptrend.' : 'Price is below the 200-day MA — the long-term trend is weak.');
-    if ((fk(p, 'sma100')?.points ?? 0) >= 12) s.push(`Price is approaching the 100-day MA (${fk(p, 'sma100')!.value}), often a support zone.`);
-    if ((fk(p, 'candles')?.points ?? 0) >= 14) s.push(`Possible reversal pattern: ${factorValue(fk(p, 'candles')!, 'en')}.`);
-    if (fk(p, 'rsi')?.points === 0) s.push('RSI signals overbought — correction risk.');
-    s.push(raw >= 70 ? 'Positive technical picture.' : raw >= 45 ? 'Mixed technical picture.' : 'Weak technical picture.');
-  } else {
-    const sec = sectorName(sector, 'en');
-    const pe = fk(p, 'pe');
-    if (pe?.value === 'הפסדית') s.push('The company is currently unprofitable, so P/E is not meaningful.');
-    else if ((pe?.points ?? 0) >= 20) s.push(`Attractive valuation vs. the ${sec} sector: P/E ${factorValue(pe!, 'en')}.`);
-    else if ((pe?.points ?? 0) <= 7) s.push(`Rich valuation vs. the ${sec} sector: P/E ${factorValue(pe!, 'en')}.`);
-    else s.push(`Valuation in line with the ${sec} sector.`);
-    if ((fk(p, 'rev')?.points ?? 0) >= 11) s.push(`Revenue is growing ${fk(p, 'rev')!.value}, above the sector.`);
-    else if (fk(p, 'rev')?.points === 0) s.push('Revenue is shrinking.');
-    if ((fk(p, 'de')?.points ?? 10) <= 3) s.push('Leverage is relatively high.');
-    if ((fk(p, 'fcf')?.points ?? 0) >= 7) s.push('Healthy free cash flow.');
-    const ern = fk(p, 'earnings');
-    if (ern && ern.points < 0) s.push(`Quarterly report due ${factorValue(ern, 'en')} — score cut by ${-ern.points} pts for event risk.`);
-    s.push(raw >= 65 ? 'Strong fundamental profile.' : raw >= 40 ? 'Reasonable fundamental profile.' : 'Weak fundamental profile.');
-  }
-  return s.join(' ');
+const SUMMARY_EN: Record<string, string> = {
+  'מגמה עולה': 'Uptrend',
+  'מגמה מעורבת': 'Mixed trend',
+  'מגמה יורדת': 'Downtrend',
+  'נקודת כניסה טובה': 'Good entry point',
+  'כניסה סבירה': 'Fair entry',
+  'מתוחה — עדיף לחכות לתיקון': 'Stretched — better to wait for a pullback',
+  'תמונה טכנית חזקה': 'Strong technical picture',
+  'תמונה טכנית חלשה': 'Weak technical picture',
+  'תמחור אטרקטיבי': 'Attractive valuation',
+  'תמחור הוגן': 'Fair valuation',
+  'תמחור יקר': 'Expensive',
+  'צמיחה חזקה': 'Strong growth',
+  'צמיחה מתונה': 'Moderate growth',
+  'צמיחה חלשה': 'Weak growth',
+  'עסק איכותי': 'High quality',
+  'איכות בינונית': 'Average quality',
+  'איכות נמוכה': 'Low quality',
+  'אין סיקור משמעותי השבוע': 'No meaningful coverage this week',
+  'ניטרלי': 'neutral',
+  'חדשות חיוביות בלבד השבוע': 'Only good news this week',
+  'חדשות שליליות בולטות השבוע': 'Notable bad news this week',
+  'סיקור חיובי ברובו': 'Mostly positive coverage',
+};
+const trSummary = (s: string) =>
+  s
+    .split(' · ')
+    .map((x) => SUMMARY_EN[x] ?? x.replace(/^דוח (.+)$/, (_m, w) => `Report ${VALUE_EN.reduce((v, [re, rep]) => v.replace(re, rep), w)}`))
+    .join(' · ');
+
+/** One-line pillar summary (the engine writes it in Hebrew; English is mapped phrase by phrase). */
+export function pillarSummary(_kind: 'technical' | 'fundamental', p: PillarResult, _sector: string, lang: Lang) {
+  return lang === 'he' ? p.summary : trSummary(p.summary);
 }
 
 export function sentimentSummary(r: SentimentResult, lang: Lang) {
-  if (lang === 'he') return r.summary;
-  if (!r.articles.length) return 'No meaningful coverage from the main news sources in the past week — neutral score.';
-  if (r.negative === 0 && r.positive > 0) return `Coverage this week is entirely positive (${r.positive} positive, no negative articles).`;
-  if (r.negative >= r.positive) return `Significant negative news (${r.negative} negative vs. ${r.positive} positive) — this third scores low.`;
-  return `Coverage is mostly positive (${r.positive} positive, ${r.negative} negative, ${r.neutral} neutral).`;
+  return lang === 'he' ? r.summary : trSummary(r.summary);
 }

@@ -1,6 +1,6 @@
 import type { Factor, NewsItem, ScoredNews, SentimentResult } from '../types.js';
 import { clamp, round } from '../indicators.js';
-import { PILLAR_MAX } from './technical.js';
+import { SENT_MAX as PILLAR_MAX } from './technical.js';
 
 /**
  * The 12 major financial-news outlets (tier 1) the sentiment pillar listens to, plus secondary media (tier 2).
@@ -79,9 +79,9 @@ export const lexiconClassifier: Classifier = async (items) =>
   items.map((i) => lexiconSentiment(`${i.headline} ${i.summary ?? ''}`));
 
 /**
- * Sentiment pillar (max 33.33).
+ * Sentiment pillar (max 20).
  * Weighted net sentiment over the last 7 days from the 10 outlets, mapped linearly:
- *   all positive → 33.33 · all negative → 0 · balanced/no news → ~16.7
+ *   all positive → 20 · all negative → 0 · balanced/no news → 10
  * Recency: today's news counts 1.0, decaying to ~0.4 after 7 days.
  * A single strongly negative headline from a top wire is enough to pull the pillar down hard.
  */
@@ -137,11 +137,14 @@ export async function scoreSentiment(
     { key: 'src', label: 'מקורות מרכזיים שסיקרו', value: `${tier1Covered}/12 (+${sourcesCovered.length - tier1Covered} משניים)`, points: 0, max: 0, signal: tier1Covered >= 2 ? 'positive' : 'neutral' },
   ];
 
-  let summary: string;
-  if (!articles.length) summary = 'לא נמצא סיקור משמעותי במקורות החדשות המרכזיים בשבוע האחרון — הציון ניטרלי.';
-  else if (negative === 0 && positive > 0) summary = `הסיקור בשבוע האחרון חיובי באופן גורף (${positive === 1 ? 'כתבה חיובית אחת' : `${positive} כתבות חיוביות`}, ללא כתבות שליליות).`;
-  else if (negative >= positive) summary = `נמצאו חדשות שליליות משמעותיות (${negative} שליליות מול ${positive} חיוביות) — הציון בשליש זה נמוך.`;
-  else summary = `הסיקור חיובי ברובו (${positive} חיוביות, ${negative} שליליות, ${neutral} ניטרליות).`;
+  // One short line (the article list and counts are shown separately in the app)
+  const summary = !articles.length
+    ? 'אין סיקור משמעותי השבוע · ניטרלי'
+    : negative === 0 && positive > 0
+      ? 'חדשות חיוביות בלבד השבוע'
+      : negative >= positive
+        ? 'חדשות שליליות בולטות השבוע'
+        : 'סיקור חיובי ברובו';
 
   return { score, factors, summary, articles, positive, negative, neutral, sourcesCovered };
 }

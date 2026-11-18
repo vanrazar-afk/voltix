@@ -29,9 +29,9 @@ test('sentiment: only good news → max, bad news → low', async () => {
   const good = await scoreSentiment('X', [mk('X beats estimates, raises guidance'), mk('X shares surge on record demand')], asOf);
   const bad = await scoreSentiment('X', [mk('X misses estimates, shares plunge'), mk('X shares surge')], asOf);
   const none = await scoreSentiment('X', [], asOf);
-  assert.ok(good.score > 30, `good ${good.score}`);
-  assert.ok(bad.score <= 100 / 3 * 0.2 + 0.01, `bad ${bad.score}`);
-  assert.ok(Math.abs(none.score - 100 / 6) < 0.1);
+  assert.ok(good.score > 17, `good ${good.score}`); // max 20
+  assert.ok(bad.score <= 20 * 0.2 + 0.01, `bad ${bad.score}`);
+  assert.ok(Math.abs(none.score - 10) < 0.1);
 });
 
 test('sentiment ignores sources outside the 10 outlets', async () => {
@@ -55,7 +55,7 @@ test('report: 50 ranked, scores 1..100, pillars sum', async () => {
     assert.ok(s.score >= 1 && s.score <= 100);
     const sum = s.technical.score + s.fundamental.score + s.sentiment.score;
     assert.ok(Math.abs(sum - s.score) <= 1, `${s.symbol} ${sum} vs ${s.score}`);
-    assert.ok(s.technical.score <= 33.34 && s.fundamental.score <= 33.34 && s.sentiment.score <= 33.34);
+    assert.ok(s.technical.score <= 50 && s.fundamental.score <= 30 && s.sentiment.score <= 20); // weights 50/30/20
     if (i) assert.ok(r.top[i - 1].score >= s.score);
   }
 });
@@ -122,4 +122,23 @@ import { isJunkHeadline } from '../src/providers/googlenews.js';
 test('google news: junk filter', () => {
   assert.ok(isJunkHeadline('Abbott Laboratories (ABT) Stock Price, News, Quote & History'));
   assert.ok(!isJunkHeadline('3M stock soars after settlement'));
+});
+
+test('technical: a pullback in an uptrend beats chasing a 5-day run', async () => {
+  const { scoreTechnical } = await import('../src/scoring/technical.js');
+  const mk = (fn: (i: number) => number) => {
+    const out = [] as { date: string; open: number; high: number; low: number; close: number; volume: number }[];
+    let prev = fn(0);
+    for (let i = 0; i < 260; i++) {
+      const c = fn(i);
+      out.push({ date: `d${i}`, open: prev, high: Math.max(prev, c) * 1.012, low: Math.min(prev, c) * 0.988, close: c, volume: 1e6 });
+      prev = c;
+    }
+    return out;
+  };
+  const base = (i: number) => 100 * Math.pow(1.0015, i) * (1 + 0.04 * Math.sin(i / 7));
+  const pullback = scoreTechnical(mk((i) => (i < 256 ? base(i) : i < 259 ? base(255) * (1 - 0.012 * (i - 255)) : base(255) * 0.975)), { rsPct: 80 });
+  const chase = scoreTechnical(mk((i) => (i < 255 ? base(i) : base(254) * Math.pow(1.018, i - 254))), { rsPct: 80 });
+  assert.ok(pullback.score > chase.score, `pullback ${pullback.score} vs chase ${chase.score}`);
+  assert.equal(chase.factors.find((f) => f.key === 'streak')!.points, 0);
 });

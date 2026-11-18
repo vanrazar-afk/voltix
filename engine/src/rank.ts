@@ -6,7 +6,7 @@ import { scoreSentiment, type Classifier, lexiconClassifier } from './scoring/se
 import { computeLevels } from './scoring/levels.js';
 import { median, round, clamp, last } from './indicators.js';
 
-export const METHODOLOGY_VERSION = '1.1.0'; // 1.1: earnings-proximity cut on the fundamental pillar; all S&P 500 ranked
+export const METHODOLOGY_VERSION = '2.0.0'; // 2.0: weights 50/30/20, trader-style technical (trend, RS, entry timing, accumulation)
 export const DISCLAIMER =
   'המידע באפליקציה מבוסס על מודל כמותי אוטומטי ומוצג לצרכי מידע ולימוד בלבד. אין בו ייעוץ השקעות, שיווק השקעות או המלצה לקנות או למכור נייר ערך כלשהו, והוא אינו מותאם לנתונים ולצרכים של אדם מסוים. מסחר בניירות ערך כרוך בסיכון, לרבות אובדן הקרן. ביצועי עבר אינם מעידים על ביצועים עתידיים.';
 
@@ -35,8 +35,9 @@ export async function scoreStock(
   sector: SectorContext,
   asOf: Date,
   classify: Classifier = lexiconClassifier,
+  rsPct: number | null = null,
 ): Promise<Omit<StockScore, 'rank' | 'prevRank' | 'prevScore'>> {
-  const technical = scoreTechnical(s.candles);
+  const technical = scoreTechnical(s.candles, { rsPct });
   const fundamental = scoreFundamental(s.fundamentals, sector, s.profile.sector, asOf);
   const sentiment = await scoreSentiment(s.profile.symbol, s.news, asOf, classify);
   const levels = computeLevels(s.candles);
@@ -94,12 +95,13 @@ export async function buildRanking(
 ): Promise<{ report: DailyReport; all: StockScore[] }> {
   const topN = opts.topN ?? 50;
   const medians = sectorMedians(inputs);
+  const rs = relativeStrength(inputs);
   const scored: Omit<StockScore, 'rank' | 'prevRank' | 'prevScore'>[] = [];
   let i = 0;
   for (const s of inputs) {
     if (s.candles.length < 210) continue; // need SMA200
     try {
-      scored.push(await scoreStock(s, medians[s.profile.sector || 'Other'], opts.asOf, opts.classify));
+      scored.push(await scoreStock(s, medians[s.profile.sector || 'Other'], opts.asOf, opts.classify, rs.get(s.profile.symbol) ?? null));
     } catch (e) {
       console.warn(`skip ${s.profile.symbol}:`, (e as Error).message);
     }
@@ -145,4 +147,15 @@ export async function buildRanking(
     disclaimer: DISCLAIMER,
   };
   return { report, all };
+}
+
+/** 6-month (126 trading days) return of each stock as a percentile (0–100) of the whole universe — like an RS rating. */
+export function relativeStrength(inputs: StockInput[]): Map<string, number> {
+  const rets = inputs
+    .filter((s) => s.candles.length > 127)
+    .map((s) => ({ sym: s.profile.symbol, r: s.candles.at(-1)!.close / s.candles.at(-127)!.close - 1 }))
+    .sort((a, b) => a.r - b.r);
+  const m = new Map<string, number>();
+  rets.forEach((x, i) => m.set(x.sym, rets.length > 1 ? (i / (rets.length - 1)) * 100 : 50));
+  return m;
 }

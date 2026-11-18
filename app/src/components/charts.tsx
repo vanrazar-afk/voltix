@@ -1,4 +1,4 @@
-import { View } from 'react-native';
+import { Pressable, View } from 'react-native';
 import Svg, { Circle, Defs, LinearGradient, Line, Path, Stop, Text as SvgText } from 'react-native-svg';
 import { colors, fonts, scoreColor } from '@/lib/theme';
 import { T, N } from './ui';
@@ -99,21 +99,33 @@ export function LevelsChart({ data, entry, target, stop, width, height = 180, la
   );
 }
 
-export function PillarBar({ label, value, color }: { label: string; value: number; color: string }) {
-  const pctv = Math.min(100, (value / (100 / 3)) * 100);
-  return (
+export function PillarBar({ label, value, color, max, onPress, active }: { label: string; value: number; color: string; max: number; onPress?: () => void; active?: boolean }) {
+  const pctv = Math.min(100, (value / max) * 100);
+  const body = (
     <View style={{ gap: 6 }}>
-      <View style={{ flexDirection: 'row', justifyContent: 'space-between' }}>
-        <T size={13} color={colors.textDim}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+        <T size={13} color={active ? colors.text : colors.textDim} w={active ? 'bold' : 'regular'}>
           {label}
         </T>
         <N size={13} w="bold" color={color}>
-          {value.toFixed(1)} / 33.3
+          {Math.round(value)}
+          <N size={11} color={colors.textMute}> / {max}</N>
         </N>
       </View>
       <View style={{ height: 8, borderRadius: 4, backgroundColor: colors.border, overflow: 'hidden' }}>
         <View style={{ width: `${pctv}%`, height: '100%', backgroundColor: color, borderRadius: 4 }} />
       </View>
     </View>
+  );
+  if (!onPress) return body;
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${label} ${Math.round(value)} / ${max}`}
+      style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] })}
+    >
+      {body}
+    </Pressable>
   );
 }

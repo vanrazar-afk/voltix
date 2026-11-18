@@ -13,6 +13,7 @@ const BIAS_COLOR = { bullish: colors.up, neutral: colors.warn, bearish: colors.d
 export function DayPlanCard({ plan }: { plan?: DayPlan | null }) {
   const t = useT();
   const [more, setMore] = useState(false);
+  const [why, setWhy] = useState(false);
   if (!plan) return null;
   const tx = plan.text[t.lang === 'he' ? 'he' : 'en'];
   const hasTrade = plan.setup !== 'none';
@@ -60,18 +61,21 @@ export function DayPlanCard({ plan }: { plan?: DayPlan | null }) {
         </>
       )}
 
-      <Why icon="compass" title={t('dp_why_bias')} text={tx.bias} />
-      <Why icon="log-in" title={t('dp_why_entry')} text={tx.entry} />
-      <Why icon="log-out" title={t(hasTrade ? 'dp_why_exit' : 'dp_levels')} text={tx.exit} />
-
-      <Pressable onPress={() => setMore(!more)} accessibilityRole="button" accessibilityState={{ expanded: more }} style={{ minHeight: 40, justifyContent: 'center' }}>
-        <Row style={{ gap: 6 }}>
-          <Feather name={more ? 'chevron-up' : 'chevron-down'} size={16} color={colors.brand2} />
-          <T size={13} w="bold" color={colors.brand2}>
-            {t(more ? 'dp_less' : 'dp_more')}
-          </T>
-        </Row>
-      </Pressable>
+      {/* One short line; the full reasoning opens on tap */}
+      <T size={14} color={colors.text}>
+        {firstSentence(tx.entry)}
+      </T>
+      <Row style={{ gap: 8 }}>
+        <ToggleChip icon="help-circle" label={t('dp_why')} on={why} onPress={() => setWhy(!why)} />
+        <ToggleChip icon="sliders" label={t('dp_more')} on={more} onPress={() => setMore(!more)} />
+      </Row>
+      {why && (
+        <View style={{ gap: space(3) }}>
+          <Why icon="compass" title={t('dp_why_bias')} text={tx.bias} />
+          <Why icon="log-in" title={t('dp_why_entry')} text={tx.entry} />
+          <Why icon="log-out" title={t(hasTrade ? 'dp_why_exit' : 'dp_levels')} text={tx.exit} />
+        </View>
+      )}
 
       {more && (
         <View style={{ gap: space(3) }}>
@@ -98,7 +102,7 @@ export function DayPlanCard({ plan }: { plan?: DayPlan | null }) {
           </T>
         </View>
       )}
-      <T size={11} color={colors.textMute}>
+      <T size={10} color={colors.textMute}>
         {t('dp_disclaimer')}
       </T>
     </Card>
@@ -193,5 +197,37 @@ function Ruler({ plan }: { plan: DayPlan }) {
         <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: colors.text, marginTop: 1 }} />
       </View>
     </View>
+  );
+}
+
+const firstSentence = (x: string) => {
+  const m = x.match(/^(.+?[.!?])(\s|$)/);
+  return (m ? m[1] : x).replace(/ — .*$/, '').trim();
+};
+
+function ToggleChip({ icon, label, on, onPress }: { icon: keyof typeof Feather.glyphMap; label: string; on: boolean; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityState={{ expanded: on }}
+      style={({ pressed }) => ({
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
+        paddingHorizontal: 12,
+        minHeight: 36,
+        borderRadius: 999,
+        borderWidth: 1,
+        borderColor: on ? colors.brand2 : colors.border,
+        backgroundColor: on ? 'rgba(124,92,255,0.15)' : 'transparent',
+        transform: [{ scale: pressed ? 0.96 : 1 }],
+      })}
+    >
+      <Feather name={icon} size={14} color={on ? colors.brand2 : colors.textDim} />
+      <T size={12} w="bold" color={on ? colors.brand2 : colors.textDim}>
+        {label}
+      </T>
+    </Pressable>
   );
 }

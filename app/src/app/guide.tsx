@@ -13,42 +13,32 @@ const PILLARS = [
   {
     icon: 'trending-up' as const,
     color: colors.tech,
-    title: L('שליש 1 · ניתוח טכני (עד 33.3)', 'Third 1 · Technical (up to 33.3)'),
+    title: L('טכני · 50 נקודות', 'Technical · 50 points'),
     items: [
-      L('מחיר מעל ממוצע נע 200 ימים — מגמה ארוכת טווח (15)', 'Price above the 200-day moving average — long-term trend (15)'),
-      L('ממוצע 50 מעל ממוצע 200 — מבנה מגמה עולה (10)', '50-day MA above 200-day MA — uptrend structure (10)'),
-      L('התקרבות לממוצע 100 מלמעלה — אזור תמיכה (20)', 'Pulling back toward the 100-day MA from above — support zone (20)'),
-      L('רצף נרות אדומים ואחריו יום ירוק — דפוס היפוך (20)', 'A run of red candles followed by a green day — reversal pattern (20)'),
-      L('RSI(14) מאוזן או יוצא ממכירת יתר (15)', 'RSI(14) balanced or leaving oversold (15)'),
-      L('היסטוגרמת MACD מתהפכת כלפי מעלה (10)', 'MACD histogram turning up (10)'),
-      L('מחזור מסחר מעל הממוצע ביום הירוק (10)', 'Above-average volume on the green day (10)'),
+      L('מגמה (18): מעל ממוצע 200 · ממוצע 50 מעל 200 · ממוצע 200 עולה · מעל ממוצע 50', 'Trend (18): above the 200-day · 50-day over 200-day · 200-day rising · above the 50-day'),
+      L('חוזק (10): ביצועי 6 חודשים מול שאר S&P 500 · MACD מתחזק', 'Strength (10): 6-month performance vs the rest of the S&P 500 · MACD rising'),
+      L('תזמון (16): קרוב לממוצע 20 = כניסה טובה · RSI מאוזן · 3 ימי עלייה ברצף = מרדף, 0 נקודות', 'Timing (16): near the 20-day = good entry · balanced RSI · 3+ straight up days = chasing, 0 points'),
+      L('לחץ קנייה (6): מחזור בימי עלייה מול ימי ירידה', 'Buying pressure (6): volume on up days vs down days'),
     ],
   },
   {
     icon: 'bar-chart-2' as const,
     color: colors.fund,
-    title: L('שליש 2 · ניתוח פונדמנטלי (עד 33.3)', 'Third 2 · Fundamental (up to 33.3)'),
+    title: L('פונדמנטלי · 30 נקודות', 'Fundamental · 30 points'),
     items: [
-      L('מכפיל רווח (P/E) ביחס לחציון הענף — לא במנותק (25)', 'P/E relative to the sector median, not in isolation (25)'),
-      L('PEG — מכפיל ביחס לקצב הצמיחה (15)', 'PEG — P/E relative to growth (15)'),
-      L('צמיחת הכנסות ביחס לענף (15)', 'Revenue growth vs. the sector (15)'),
-      L('צמיחה ברווח למניה (10)', 'EPS growth (10)'),
-      L('שולי רווח נקי ביחס לענף (10)', 'Net margin vs. the sector (10)'),
-      L('יחס חוב להון (10)', 'Debt to equity (10)'),
-      L('תשואת תזרים מזומנים חופשי (10)', 'Free-cash-flow yield (10)'),
-      L('תשואה על ההון ROE (5)', 'Return on equity (5)'),
-      L('קרבה לדוח רבעוני: ככל שהדוח קרוב יותר — הציון יורד (עד −50% ביום הדוח, ומתאפס 30 יום לפני), כי דוח מוסיף סיכון לתנודה חדה', 'Upcoming quarterly report: the closer it is, the lower the score (up to −50% on report day, fading to 0 at 30 days out), because a report adds the risk of a sharp move'),
+      L('תמחור (10): מכפיל רווח מול הענף · PEG', 'Valuation (10): P/E vs the sector · PEG'),
+      L('צמיחה (10): הכנסות · רווח למניה', 'Growth (10): revenue · earnings per share'),
+      L('איכות (10): שולי רווח · ROE · תזרים חופשי · חוב', 'Quality (10): margins · ROE · free cash flow · debt'),
+      L('דוח רבעוני קרוב מוריד עד חצי מהציון (סיכון)', 'An upcoming quarterly report cuts up to half (event risk)'),
     ],
   },
   {
     icon: 'message-circle' as const,
     color: colors.sent,
-    title: L('שליש 3 · סנטימנט (עד 33.3)', 'Third 3 · Sentiment (up to 33.3)'),
+    title: L('סנטימנט · 20 נקודות', 'Sentiment · 20 points'),
     items: [
-      L('כותרות 7 הימים האחרונים מ-Google News ו-Yahoo Finance: Reuters, Bloomberg, WSJ, Financial Times, CNBC, MarketWatch, Barron\'s, Yahoo Finance, Seeking Alpha, Benzinga, Morningstar ועוד', 'Last-7-day headlines via Google News and Yahoo Finance: Reuters, Bloomberg, WSJ, Financial Times, CNBC, MarketWatch, Barron\'s, Yahoo Finance, Seeking Alpha, Benzinga, Morningstar and more'),
-      L('כל כותרת מסווגת חיובית / ניטרלית / שלילית', 'Each headline is classified positive / neutral / negative'),
-      L('רק חדשות טובות ← ציון מקסימלי. חדשות רעות דומיננטיות ← ציון מינימלי', 'Only good news → maximum score. Dominant bad news → minimum score'),
-      L('חדשות טריות וסוכנויות ידיעות מקבלות משקל גבוה יותר; חדשות רעות משוקללות פי 1.5', 'Fresh news and wire services weigh more; bad news weighs 1.5×'),
+      L('חדשות 7 ימים מעשרות אתרי כלכלה', 'Last 7 days of news from dozens of financial sites'),
+      L('רק חדשות טובות = 20 · חדשות רעות דומיננטיות = עד 4', 'Only good news = 20 · dominant bad news = up to 4'),
     ],
   },
 ];
@@ -65,12 +55,12 @@ const GLOSSARY: [L, L][] = [
 
 const TEXT = {
   title: L('איך מחושב הציון', 'How the score works'),
-  intro: L('כל אחת מ-500 מניות S&P 500 מקבלת ציון 1–100 שמורכב משלושה שלישים שווים. בזמן המסחר בוול סטריט הדירוג מתעדכן כל 5 דקות (מחירים וניתוח טכני), וחדשות ונתונים פונדמנטליים מתעדכנים פעם בשעה. כשהבורסה סגורה — הכול מתעדכן פעם בשעה.', 'Each of the 500 S&P 500 stocks gets a 1–100 score made of three equal thirds. While Wall Street is open the ranking refreshes every 5 minutes (prices and technicals), with news and fundamentals refreshed hourly. When the market is closed, everything refreshes hourly.'),
+  intro: L('כל מניה ב-S&P 500 מקבלת ציון 1–100: טכני 50, פונדמנטלי 30, סנטימנט 20. במסחר — עדכון כל 5 דקות.', 'Every S&P 500 stock gets a 1–100 score: technical 50, fundamental 30, sentiment 20. Updated every 5 minutes in market hours.'),
   levelsT: L('יעד יציאה וסטופ', 'Exit target & stop'),
-  levels: L('הסטופ ממוקם 2×ATR מתחת למחיר, או מתחת לממוצע 100 אם הוא קרוב יותר. היעד הוא ההתנגדות הקרובה (שיא 60 יום / 52 שבועות) אם היא נותנת לפחות פי 1.5 מהסיכון, אחרת יעד של פי 2 מהסיכון. אלו רמות טכניות לצורכי מחקר — לא תחזית מחיר.', 'The stop sits 2×ATR below the price, or just under the 100-day MA if that is closer. The target is the nearest resistance (60-day / 52-week high) if it offers at least 1.5× the risk, otherwise 2× the risk. These are technical research levels — not a price forecast.'),
+  levels: L('סטופ: 2×ATR מתחת למחיר. יעד: ההתנגדות הקרובה, לפחות פי 1.5 מהסיכון. רמות מחקר — לא תחזית.', 'Stop: 2×ATR below price. Target: the nearest resistance, at least 1.5× the risk. Research levels — not a forecast.'),
   glossT: L('מילון מונחים', 'Glossary'),
   limitsT: L('מגבלות המודל', 'Model limitations'),
-  limits: L('המודל מבוסס על נתוני עבר וכללים קבועים. הוא אינו צופה אירועים בלתי צפויים, עלול לטעות בסיווג כותרות, ואינו מתחשב במצבכם האישי. ציון גבוה אינו מבטיח עלייה במחיר.', 'The model uses historical data and fixed rules. It cannot foresee surprises, may misclassify headlines, and ignores your personal situation. A high score does not guarantee a price rise.'),
+  limits: L('נתוני עבר וכללים קבועים. לא צופה הפתעות ולא מכיר את המצב האישי שלכם. ציון גבוה אינו הבטחה.', 'Past data and fixed rules. It cannot foresee surprises and does not know your situation. A high score is no guarantee.'),
 };
 
 export default function Learn() {
