@@ -81,7 +81,7 @@ export const lexiconClassifier: Classifier = async (items) =>
 /**
  * Sentiment pillar (max 20).
  * Weighted net sentiment over the last 7 days from the 10 outlets, mapped linearly:
- *   all positive → 20 · all negative → 0 · balanced/no news → 10
+ *   strongly positive → 20 · negative-dominant → ≤4 · balanced/no news → 10
  * Recency: today's news counts 1.0, decaying to ~0.4 after 7 days.
  * A single strongly negative headline from a top wire is enough to pull the pillar down hard.
  */
@@ -119,9 +119,10 @@ export async function scoreSentiment(
   const sourcesCovered = [...new Set(articles.map((a) => a.source))];
   const tier1Covered = sourcesCovered.filter((k) => NEWS_SOURCES[k].tier === 1).length;
 
-  // Linear map (net -1..1 → 0..max). Pure good news → max, pure bad news → min.
-  let score = ((net + 1) / 2) * PILLAR_MAX;
-  if (articles.length > 0 && negative === 0 && positive > 0) score = Math.max(score, PILLAR_MAX * 0.92);
+  // Net tone drives the score (neutral headlines dilute it, as they should): net 0 → 10, net ±0.77 → 20/0.
+  // A clean week (no negatives) adds a small bonus — but 1 positive among 20 neutral is not "great news".
+  let score = PILLAR_MAX / 2 + net * PILLAR_MAX * 0.65;
+  if (articles.length > 0 && negative === 0 && positive > 0) score += PILLAR_MAX * 0.05 + (positive / articles.length) * PILLAR_MAX * 0.1;
   if (negative > 0 && negative >= positive) score = Math.min(score, PILLAR_MAX * 0.2);
   // Thin coverage: a single positive headline is weak evidence, so pull the upside toward neutral
   // until there are ~3 relevant articles. Bad news is never softened.
